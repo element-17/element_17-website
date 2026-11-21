@@ -1,0 +1,446 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.panels {
+  @include fill;
+  z-index: 2;
+  pointer-events: none;
+
+  &__float {
+    @include fill;
+    will-change: transform;
+  }
+}
+
+.panel {
+  position: absolute;
+  top: 46%;
+  width: min(430px, 36vw);
+  transform: translateY(-50%);
+  pointer-events: none;
+
+  &.is-active {
+    pointer-events: auto;
+  }
+
+  // 每一行初始隐藏，由 GSAP 接管
+  [data-line] {
+    visibility: hidden;
+    will-change: transform, opacity;
+  }
+
+  &--left {
+    left: 7.5vw;
+  }
+
+  &--right {
+    right: 7.5vw;
+  }
+
+  &__kicker {
+    @include tracking-caps(0.5em);
+    font-size: 12px;
+    color: $c-text-soft;
+    margin-bottom: 14px;
+  }
+
+  &__title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35em;
+    font-family: $font-brush;
+    font-weight: 400;
+    font-size: clamp(46px, 6vw, 88px);
+    line-height: 1.05;
+    letter-spacing: 0.12em;
+    color: #fff;
+    text-shadow: 0 0 40px rgba(176, 146, 255, 0.38);
+
+    &--hero {
+      font-size: clamp(54px, 7.2vw, 108px);
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+  }
+
+  &__title-en {
+    @include tracking-caps(0.3em);
+    font-size: 0.2em;
+    color: $c-text-soft;
+    text-shadow: none;
+  }
+
+  &__rule {
+    width: 84px;
+    height: 2px;
+    margin: 22px 0 20px;
+    background: linear-gradient(90deg, $c-accent, rgba(201, 53, 63, 0));
+  }
+
+  &__subtitle {
+    @include tracking-caps(0.3em);
+    font-size: 15px;
+    color: $c-ink;
+    margin-bottom: 14px;
+  }
+
+  &__desc {
+    font-family: $font-brush;
+    font-size: 18px;
+    line-height: 1.9;
+    letter-spacing: 0.08em;
+    color: rgba(232, 224, 255, 0.78);
+    text-shadow: 0 2px 14px rgba(5, 4, 15, 0.75);
+  }
+
+  &__cue {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 22px;
+    padding: 8px 14px;
+    border: 1px solid rgba(235, 198, 140, 0.26);
+    border-radius: 2px;
+    background: rgba(18, 12, 28, 0.45);
+    font-family: $font-brush;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    color: rgba(242, 218, 180, 0.9);
+  }
+
+  &__cue-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff9c52;
+    box-shadow: 0 0 8px rgba(255, 156, 82, 0.9);
+  }
+
+  &__cue-mobile {
+    display: none;
+  }
+
+  &__items {
+    margin-top: 22px;
+  }
+
+  &__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+    border-top: 1px solid $c-line;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    color: $c-ink;
+    text-shadow: 0 1px 10px rgba(5, 4, 15, 0.8);
+  }
+
+  &__item-meta {
+    flex: none;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: $c-text-soft;
+  }
+
+  &__item-link {
+    color: #efe4ff;
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid rgba(206, 184, 255, 0.3);
+    padding-bottom: 1px;
+    transition:
+      color 0.25s ease,
+      border-color 0.25s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: #fff;
+      border-color: $c-accent;
+    }
+
+    &:focus-visible {
+      outline: 1px solid rgba(206, 184, 255, 0.65);
+      outline-offset: 3px;
+    }
+  }
+
+  &__copy {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__copy-btn {
+    min-inline-size: 24px;
+    min-block-size: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 8px;
+    border: 1px solid rgba(206, 184, 255, 0.22);
+    border-radius: 2px;
+    background: rgba(15, 10, 28, 0.42);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    color: $c-ink;
+    transition:
+      border-color 0.25s ease,
+      background-color 0.25s ease,
+      color 0.25s ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: rgba(235, 198, 140, 0.6);
+      background: rgba(255, 184, 118, 0.12);
+    }
+
+    &:focus-visible {
+      outline: 1px solid rgba(235, 198, 140, 0.8);
+      outline-offset: 2px;
+    }
+
+    &[data-copied] {
+      border-color: rgba(138, 224, 168, 0.6);
+      color: #c8f5d6;
+    }
+
+    &[data-failed] {
+      border-color: rgba(224, 106, 114, 0.65);
+      color: #f7c0c4;
+    }
+  }
+
+  &__copy-icon {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+
+  // Live region 始终留在无障碍树里，只靠 opacity 控制显隐
+  &__copy-tip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    padding: 2px 8px;
+    border-radius: 2px;
+    background: rgba(16, 12, 28, 0.92);
+    border: 1px solid rgba(235, 198, 140, 0.4);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: #f3d7ad;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition:
+      opacity 0.2s ease,
+      transform 0.2s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+      transform: none;
+      transition: opacity 0.2s ease;
+    }
+
+    &[data-visible] {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  &__article-btn {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    text-align: left;
+    transition: color 0.25s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: #f2d4a7;
+    }
+  }
+
+  &__projects {
+    margin-top: 18px;
+  }
+
+  &__project {
+    padding: 11px 0;
+    border-top: 1px solid $c-line;
+    text-shadow: 0 1px 10px rgba(5, 4, 15, 0.85);
+  }
+
+  &__project-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  &__project-name {
+    font-family: $font-brush;
+    font-size: 16px;
+    letter-spacing: 0.06em;
+    color: #fff;
+
+    &--link {
+      text-decoration: none;
+
+      &:hover,
+      &:focus-visible {
+        color: #f2c896;
+      }
+    }
+  }
+
+  &__project-desc {
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.6;
+    letter-spacing: 0.04em;
+    color: $c-text-soft;
+  }
+
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  &__tag {
+    padding: 5px 12px;
+    border: 1px solid $c-line;
+    @include tracking-caps(0.16em);
+    font-size: 11px;
+    color: $c-ink;
+    background: rgba(152, 118, 216, 0.1);
+  }
+
+  // 右侧面板整体右对齐
+  &--right {
+    text-align: right;
+
+    .panel__title {
+      justify-content: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .panel__rule {
+      margin-left: auto;
+      background: linear-gradient(270deg, $c-accent, rgba(201, 53, 63, 0));
+    }
+
+    .panel__project-top {
+      flex-direction: row-reverse;
+    }
+
+    .panel__tags {
+      justify-content: flex-end;
+    }
+  }
+
+  @include mobile {
+    top: 10vh;
+    left: 6vw;
+    right: 6vw;
+    width: auto;
+    transform: none;
+    text-align: left;
+
+    &__kicker {
+      margin-bottom: 8px;
+    }
+
+    &__title {
+      font-size: clamp(34px, 10.5vw, 44px);
+    }
+
+    &__title--hero {
+      font-size: clamp(38px, 12vw, 52px);
+    }
+
+    &__rule {
+      width: 64px;
+      margin: 12px 0 10px;
+    }
+
+    &__subtitle {
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    &__desc {
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    &__cue {
+      margin-top: 12px;
+      padding: 6px 10px;
+      font-size: 12.5px;
+    }
+
+    &__cue-desktop {
+      display: none;
+    }
+
+    &__cue-mobile {
+      display: inline;
+    }
+
+    &__items,
+    &__projects,
+    &__tags {
+      margin-top: 10px;
+    }
+
+    &__item,
+    &__project {
+      padding: 7px 0;
+      font-size: 13.5px;
+    }
+
+    &__project-name {
+      font-size: 14px;
+    }
+
+    &__project-desc {
+      font-size: 12px;
+    }
+
+    &__item-meta {
+      font-size: 11px;
+    }
+
+    &__tag {
+      padding: 4px 9px;
+      font-size: 10px;
+    }
+
+    &--right {
+      .panel__title {
+        justify-content: flex-start;
+        flex-direction: row;
+      }
+
+      .panel__rule {
+        margin-left: 0;
+        background: linear-gradient(90deg, $c-accent, rgba(201, 53, 63, 0));
+      }
+
+      .panel__project-top {
+        flex-direction: row;
+      }
+
+      .panel__tags {
+        justify-content: flex-start;
+      }
+    }
+  }
+}

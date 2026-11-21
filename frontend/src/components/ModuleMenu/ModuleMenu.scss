@@ -1,0 +1,166 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 5.5vh;
+  display: flex;
+  justify-content: center;
+  z-index: 4;
+
+  &__float {
+    will-change: transform;
+  }
+
+  &__list {
+    position: relative;
+    display: flex;
+    border-top: 1px solid $c-line;
+  }
+
+  // 选中光带：1px 宽的元素靠 scaleX 拉伸到按钮宽度
+  &__indicator {
+    position: absolute;
+    left: 0;
+    top: -1px;
+    width: 1px;
+    height: 2px;
+    transform-origin: 0 50%;
+    background: linear-gradient(90deg, transparent, $c-moon 30%, #fff 50%, $c-moon 70%, transparent);
+    transition: transform 0.65s $ease-out;
+    pointer-events: none;
+
+    @media (prefers-reduced-motion: reduce) {
+      transition-duration: 0.15s;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 46px;
+      background: linear-gradient(180deg, rgba(196, 172, 255, 0.18), transparent);
+    }
+  }
+
+  &__item {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    column-gap: 0.7em;
+    align-items: baseline;
+    padding: 18px 30px 6px;
+    text-align: left;
+    color: $c-text-soft;
+    outline: none;
+    transition:
+      color 0.35s ease,
+      transform 0.45s $ease-out;
+
+    // 悬停时自下方升起的细线
+    &::before {
+      content: '';
+      position: absolute;
+      left: 30px;
+      right: 30px;
+      bottom: -4px;
+      height: 1px;
+      background: $c-accent;
+      transform: scaleX(0);
+      transform-origin: 0 50%;
+      transition: transform 0.45s $ease-out;
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: $c-ink;
+      transform: translateY(-3px);
+
+      &::before {
+        transform: scaleX(1);
+      }
+    }
+
+    // 键盘 Tab 到达时的可见焦点环
+    &:focus-visible {
+      outline: 1px solid rgba(206, 184, 255, 0.58);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+
+    &.is-active {
+      color: #fff;
+      transform: translateY(-3px);
+
+      &::before {
+        transform: scaleX(1);
+      }
+
+      .menu__index {
+        color: $c-accent;
+      }
+
+      .menu__en {
+        opacity: 0.85;
+      }
+    }
+  }
+
+  &__index {
+    grid-row: 1 / span 2;
+    align-self: start;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: rgba(206, 184, 255, 0.42);
+    transition: color 0.35s ease;
+  }
+
+  &__label {
+    font-family: $font-brush;
+    font-size: 24px;
+    letter-spacing: 0.22em;
+    line-height: 1.1;
+  }
+
+  &__en {
+    grid-column: 2;
+    @include tracking-caps(0.32em);
+    font-size: 10px;
+    opacity: 0.5;
+    transition: opacity 0.35s ease;
+  }
+
+  @include mobile {
+    bottom: 3vh;
+
+    &__item {
+      padding: 14px 10px 6px;
+
+      &::before {
+        left: 12px;
+        right: 12px;
+      }
+    }
+
+    &__index {
+      display: none;
+    }
+
+    &__label {
+      font-size: 18px;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+
+    &__en {
+      grid-column: 1;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+    }
+  }
+}

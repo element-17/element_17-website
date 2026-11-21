@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 暗紫夜色底 + 朱红印章 + 白剑 -->
+  <rect width="64" height="64" rx="14" fill="#150d33"/>
+  <rect x="9" y="9" width="46" height="46" rx="6" fill="#c9353f"/>
+  <path d="M32 14 L35.2 37 L28.8 37 Z" fill="#f6f1ff"/>
+  <rect x="23.5" y="37" width="17" height="3.6" rx="1.8" fill="#f6f1ff"/>
+  <rect x="29.8" y="40.6" width="4.4" height="8.4" rx="2" fill="#f6f1ff"/>
+  <circle cx="32" cy="51" r="2.8" fill="#f6f1ff"/>
+</svg>

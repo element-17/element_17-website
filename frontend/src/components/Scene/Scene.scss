@@ -1,0 +1,135 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+@use 'overlays';
+
+.scene {
+  @include fill;
+  overflow: hidden;
+  background: $c-night-0;
+
+  &__canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  // WebGL 不可用时的兜底暮色：暗紫天幕 + 残霞 + 星点 + 月 + 紫山影
+  &--fallback {
+    background: linear-gradient(180deg, $c-night-0 0%, $c-night-1 34%, #3a1c52 62%, #4a2352 80%, #2c1b47 100%);
+
+    .scene__canvas {
+      display: none;
+    }
+  }
+
+  // 地平线右侧的一抹残霞：日落方向（SUN_DIR 偏右后）
+  &__fallback-glow {
+    @include fill;
+    background:
+      radial-gradient(ellipse 46% 30% at 74% 82%, rgba(255, 154, 85, 0.5) 0%, rgba(212, 80, 106, 0.34) 38%, transparent 72%),
+      radial-gradient(ellipse 70% 22% at 62% 88%, rgba(212, 80, 106, 0.24) 0%, transparent 76%);
+    pointer-events: none;
+  }
+
+  &__fallback-stars {
+    @include fill;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 18%, rgba(240, 234, 255, 0.9), transparent 100%),
+      radial-gradient(1px 1px at 28% 9%, rgba(240, 234, 255, 0.7), transparent 100%),
+      radial-gradient(1px 1px at 44% 22%, rgba(240, 234, 255, 0.55), transparent 100%),
+      radial-gradient(1.5px 1.5px at 63% 12%, rgba(240, 234, 255, 0.8), transparent 100%),
+      radial-gradient(1px 1px at 76% 26%, rgba(240, 234, 255, 0.6), transparent 100%),
+      radial-gradient(1px 1px at 88% 8%, rgba(240, 234, 255, 0.75), transparent 100%),
+      radial-gradient(1px 1px at 20% 34%, rgba(240, 234, 255, 0.4), transparent 100%),
+      radial-gradient(1px 1px at 57% 38%, rgba(240, 234, 255, 0.45), transparent 100%);
+    pointer-events: none;
+  }
+
+  &__fallback-moon {
+    position: absolute;
+    top: 12%;
+    right: 16%;
+    width: clamp(64px, 11vw, 120px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 42% 38%, #fbf8ff 0%, #e6dcff 46%, rgba(206, 184, 255, 0.3) 64%, transparent 74%);
+    box-shadow: 0 0 60px 24px rgba(196, 172, 255, 0.18);
+    pointer-events: none;
+  }
+
+  // 山影：只占中段，山脚落在河面上（下面是水）
+  &__fallback-mountains {
+    @include fill;
+    background:
+      linear-gradient(180deg, transparent 46%, rgba(14, 8, 26, 0.92) 46.2%, #191130 60%, transparent 62%);
+    clip-path: polygon(
+      0 62%, 0 52%, 9% 43%, 19% 51%, 30% 40%, 41% 48%, 52% 42%, 63% 50%, 74% 44%, 85% 52%, 100% 46%, 100% 62%, 0 62%
+    );
+    pointer-events: none;
+  }
+
+  // 河面：深紫渐变 + 一道月光竖带（落在月亮正下方）+ 几点暖色灯影
+  &__fallback-river {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 60%;
+    bottom: 0;
+    background:
+      // 月光在水面的竖直光带
+      linear-gradient(
+        180deg,
+        rgba(226, 216, 255, 0.42) 0%,
+        rgba(206, 190, 255, 0.2) 26%,
+        rgba(180, 160, 235, 0.07) 58%,
+        transparent 100%
+      ) 62% 0 / 13% 100% no-repeat,
+      // 水面本身的颜色：近处更深，远处被天光提亮
+      linear-gradient(180deg, rgba(74, 52, 96, 0.95) 0%, rgba(38, 26, 58, 0.98) 34%, #150e26 78%, #0b0716 100%);
+    pointer-events: none;
+  }
+
+  // 水上的暖色灯影：船头灯、对岸窗火的几点倒影
+  &__fallback-lights {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 60%;
+    bottom: 0;
+    background:
+      radial-gradient(ellipse 3.2% 5% at 34% 16%, rgba(255, 176, 96, 0.85), transparent 70%),
+      radial-gradient(ellipse 1.6% 9% at 34% 34%, rgba(255, 160, 80, 0.4), transparent 72%),
+      radial-gradient(ellipse 2.4% 4% at 71% 11%, rgba(255, 196, 120, 0.6), transparent 70%),
+      radial-gradient(ellipse 1.2% 7% at 71% 26%, rgba(255, 180, 100, 0.28), transparent 72%),
+      radial-gradient(ellipse 2% 3% at 86% 8%, rgba(255, 208, 140, 0.45), transparent 70%);
+    pointer-events: none;
+  }
+
+  // 水与岸的分界：一条若隐若现的浮沫线
+  &__fallback-shore {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 59.4%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(206, 190, 255, 0.24) 22%, rgba(226, 216, 255, 0.34) 55%, rgba(206, 190, 255, 0.16) 82%, transparent);
+    filter: blur(1px);
+    pointer-events: none;
+  }
+
+  &__fallback-note {
+    position: absolute;
+    left: 50%;
+    bottom: 20vh;
+    transform: translateX(-50%);
+    margin: 0;
+    width: max-content;
+    max-width: 88vw;
+    font-family: $font-brush;
+    font-size: 15px;
+    letter-spacing: 0.32em;
+    text-align: center;
+    color: $c-text-soft;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+  }
+}

@@ -1,0 +1,26 @@
+// 色板：暮色入夜的暗紫 + 冷月 + 一点朱红
+$c-night-0: #05040f;
+$c-night-1: #150d33;
+$c-night-2: #2d1547;
+$c-night-3: #2c1b47;
+
+$c-ink: #eee8ff; // 人物 / 主文字
+$c-ink-dim: #bbb0d8;
+$c-steel: #9a86c4;
+$c-moon: #f3ecff;
+$c-text-soft: rgba(226, 216, 255, 0.62);
+$c-line: rgba(206, 184, 255, 0.24);
+
+$c-accent: #c9353f;
+$c-accent-deep: #8e2029;
+
+// 字体：全部使用系统字体，避免网络依赖
+$font-brush: 'STKaiti', 'KaiTi', 'Kaiti SC', 'Songti SC', 'SimSun', serif;
+$font-serif: 'Cormorant Garamond', 'Palatino Linotype', 'Book Antiqua', Georgia, 'Songti SC', 'SimSun', serif;
+
+// 与 SceneTransitionController.PERSPECTIVE 保持一致
+$perspective: 1400px;
+
+$ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+$bp-mobile: 768px;

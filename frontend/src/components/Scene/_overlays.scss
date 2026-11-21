@@ -1,0 +1,11 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.scene {
+  &__vignette {
+    @include fill;
+    background: radial-gradient(ellipse at 50% 55%, transparent 32%, rgba(3, 2, 9, 0.9) 100%);
+    pointer-events: none;
+    will-change: opacity;
+  }
+}

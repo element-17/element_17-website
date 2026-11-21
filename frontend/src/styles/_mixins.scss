@@ -1,0 +1,18 @@
+@use 'variables' as *;
+
+@mixin fill {
+  position: absolute;
+  inset: 0;
+}
+
+@mixin tracking-caps($spacing: 0.35em) {
+  font-family: $font-serif;
+  text-transform: uppercase;
+  letter-spacing: $spacing;
+}
+
+@mixin mobile {
+  @media (max-width: $bp-mobile) {
+    @content;
+  }
+}
