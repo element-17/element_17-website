@@ -71,7 +71,7 @@ java -jar target/backend-0.0.1-SNAPSHOT.jar
 | `JWT_EXPIRE_SECONDS` | `86400` | JWT 有效期（秒，默认 24 小时） |
 | `ADMIN_INIT_USERNAME` | `admin` | 首次启动自动创建的站长账号 |
 | `ADMIN_INIT_PASSWORD` | `LoneBlade@2026` | **首次上线前务必替换或登录后立即修改** |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | 允许跨域的前端域名（逗号分隔） |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:*,http://127.0.0.1:*` | 允许跨域的前端域名模式（逗号分隔，生产收窄为线上域名） |
 
 ---
 
