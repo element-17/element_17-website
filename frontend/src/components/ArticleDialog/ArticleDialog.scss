@@ -97,6 +97,39 @@
     @include tracking-caps(0.14em);
   }
 
+  &__views {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: rgba(236, 218, 188, 0.72);
+  }
+
+  &__state {
+    padding: 20px 0 12px;
+  }
+
+  &__error {
+    margin-top: 12px;
+    font-size: 15px;
+    color: #f3b5b9;
+  }
+
+  &__retry {
+    margin-top: 18px;
+    padding: 6px 16px;
+    border: 1px solid rgba(235, 198, 140, 0.45);
+    border-radius: 2px;
+    font-family: $font-brush;
+    font-size: 14px;
+    letter-spacing: 0.18em;
+    color: #f3d7ad;
+    transition: background-color 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      background: rgba(255, 196, 130, 0.12);
+    }
+  }
+
   &__close {
     min-inline-size: 48px;
     min-block-size: 32px;

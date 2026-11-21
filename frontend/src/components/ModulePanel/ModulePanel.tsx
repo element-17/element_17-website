@@ -2,20 +2,26 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import cn from 'classnames'
 import gsap from 'gsap'
 import {
-  MODULES,
-  SITE,
-  moduleIndex,
-  type ArticleItem,
-  type InfoItem,
-  type ModuleDef,
-  type ModuleId,
-} from '../../config/modules'
+  formatScrollDate,
+  type ArticleSummary,
+  type ProfileItemVO,
+  type ProjectItem,
+  type SiteOverview,
+} from '../../api/client'
+import { MODULES, moduleIndex, type ModuleDef, type ModuleId } from '../../config/modules'
 import './ModulePanel.scss'
 
 interface Props {
   active: ModuleId
   fallback?: boolean
-  onOpenArticle: (article: ArticleItem) => void
+  site: SiteOverview | null
+  articles: ArticleSummary[]
+  projects: ProjectItem[]
+  loading: boolean
+  error: string | null
+  onRetry: () => void
+  onOpenArticle: (slug: string) => void
+  onOpenMessage: () => void
 }
 
 let lastAnnouncement = ''
@@ -33,7 +39,7 @@ function legacyCopy(text: string): boolean {
   }
 }
 
-/** 遵循现代剪贴板与无障碍实践的复制按钮：不禁用按钮、状态播报与视觉反馈共用独立 live region */
+/** 遵循现代剪贴板与无障碍实践的复制按钮 */
 function CopyAction({ label, value }: { label: string; value: string }) {
   const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [tip, setTip] = useState('')
@@ -89,7 +95,7 @@ function CopyAction({ label, value }: { label: string; value: string }) {
   )
 }
 
-function InfoRow({ it }: { it: InfoItem }) {
+function ProfileRow({ it }: { it: ProfileItemVO }) {
   if (it.copyValue) {
     return (
       <li className="panel__item" data-line>
@@ -102,13 +108,8 @@ function InfoRow({ it }: { it: InfoItem }) {
     return (
       <li className="panel__item" data-line>
         <span className="panel__item-label">{it.label}</span>
-        <a
-          className="panel__item-link"
-          href={it.href}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {it.meta ?? it.href} ↗
+        <a className="panel__item-link" href={it.href} target="_blank" rel="noopener noreferrer">
+          {it.meta} ↗
         </a>
       </li>
     )
@@ -116,7 +117,7 @@ function InfoRow({ it }: { it: InfoItem }) {
   return (
     <li className="panel__item" data-line>
       <span className="panel__item-label">{it.label}</span>
-      {it.meta && <span className="panel__item-meta">{it.meta}</span>}
+      <span className="panel__item-meta">{it.meta}</span>
     </li>
   )
 }
@@ -124,31 +125,62 @@ function InfoRow({ it }: { it: InfoItem }) {
 function PanelBody({
   m,
   fallback,
+  site,
+  articles,
+  projects,
+  loading,
+  error,
+  onRetry,
   onOpenArticle,
+  onOpenMessage,
 }: {
   m: ModuleDef
   fallback: boolean
-  onOpenArticle: (article: ArticleItem) => void
+  site: SiteOverview | null
+  articles: ArticleSummary[]
+  projects: ProjectItem[]
+  loading: boolean
+  error: string | null
+  onRetry: () => void
+  onOpenArticle: (slug: string) => void
+  onOpenMessage: () => void
 }) {
   if (m.id === 'home') {
     return (
       <>
         <p className="panel__kicker" data-line>
-          {SITE.nameEn}
+          {site?.site.nameEn ?? (loading ? 'LOADING' : 'OFFLINE')}
         </p>
         <h1 className="panel__title panel__title--hero" data-line>
-          {SITE.name}
+          {site?.site.name ?? (loading ? '入夜载卷中' : '服务未连接')}
         </h1>
         <p className="panel__rule" data-line />
-        <p className="panel__subtitle" data-line>
-          {SITE.subtitle}
-        </p>
-        <p className="panel__desc" data-line>
-          {m.desc}
-        </p>
+        {site ? (
+          <>
+            <p className="panel__subtitle" data-line>
+              {site.site.subtitle}
+            </p>
+            <p className="panel__desc" data-line>
+              {site.site.tagline}
+            </p>
+          </>
+        ) : error ? (
+          <div className="panel__status" data-line role="alert">
+            <span>{error}</span>
+            <button type="button" className="panel__retry" onClick={onRetry}>
+              重试连接
+            </button>
+          </div>
+        ) : (
+          <p className="panel__desc" data-line>
+            正在连接后端接口…
+          </p>
+        )}
       </>
     )
   }
+
+  const desc = site?.descriptions[m.id] ?? ''
 
   return (
     <>
@@ -160,26 +192,38 @@ function PanelBody({
         <span className="panel__title-en">{m.en}</span>
       </h2>
       <p className="panel__rule" data-line />
-      <p className="panel__desc" data-line>
-        {m.desc}
-      </p>
 
-      {/* 藏卷：WebGL 正常时文章贴在右侧 3D 古卷上；兜底模式则在面板里直接展示可点列表 */}
-      {m.articles && !fallback && (
+      {desc && (
+        <p className="panel__desc" data-line>
+          {desc}
+        </p>
+      )}
+
+      {!loading && error && (
+        <div className="panel__status" data-line role="alert">
+          <span>{error}</span>
+          <button type="button" className="panel__retry" onClick={onRetry}>
+            重试
+          </button>
+        </div>
+      )}
+
+      {/* 藏卷：WebGL 正常时文章贴在右侧 3D 古卷上；无 WebGL 兜底模式则在面板里展示实时列表 */}
+      {m.id === 'blog' && !fallback && !error && (
         <p className="panel__cue" data-line>
           <span className="panel__cue-dot" aria-hidden="true" />
           <span className="panel__cue-desktop">炉畔古卷已展，轻点右侧卷目展阅</span>
           <span className="panel__cue-mobile">炉畔古卷已展，轻点下方卷目展阅</span>
         </p>
       )}
-      {m.articles && fallback && (
+      {m.id === 'blog' && fallback && !error && (
         <ul className="panel__items">
-          {m.articles.map((art) => (
+          {articles.map((art) => (
             <li key={art.id} className="panel__item" data-line>
-              <button type="button" className="panel__article-btn" onClick={() => onOpenArticle(art)}>
+              <button type="button" className="panel__article-btn" onClick={() => onOpenArticle(art.slug)}>
                 <span className="panel__item-label">{art.title}</span>
                 <span className="panel__item-meta">
-                  {art.tag} · {art.date}
+                  {art.tag} · {art.viewCount} 阅 · {formatScrollDate(art.publishedAt)}
                 </span>
               </button>
             </li>
@@ -187,64 +231,102 @@ function PanelBody({
         </ul>
       )}
 
-      {m.projects && (
-        <ul className="panel__projects">
-          {m.projects.map((proj) => (
-            <li key={proj.name} className="panel__project" data-line>
-              <div className="panel__project-top">
-                {proj.url ? (
-                  <a
-                    className="panel__project-name panel__project-name--link"
-                    href={proj.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {proj.name} ↗
-                  </a>
-                ) : (
-                  <span className="panel__project-name">{proj.name}</span>
-                )}
-                <span className="panel__item-meta">{proj.meta}</span>
-              </div>
-              <p className="panel__project-desc">{proj.desc}</p>
-            </li>
-          ))}
-        </ul>
+      {/* 铸剑：实时作品 + 技能标签 */}
+      {m.id === 'projects' && !error && (
+        <>
+          {projects.length > 0 && (
+            <ul className="panel__projects">
+              {projects.map((proj) => {
+                const link = proj.url || proj.repoUrl
+                return (
+                  <li key={proj.id} className="panel__project" data-line>
+                    <div className="panel__project-top">
+                      {link ? (
+                        <a
+                          className="panel__project-name panel__project-name--link"
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {proj.name} ↗
+                        </a>
+                      ) : (
+                        <span className="panel__project-name">{proj.name}</span>
+                      )}
+                      <span className="panel__item-meta">{proj.meta}</span>
+                    </div>
+                    <p className="panel__project-desc">{proj.description}</p>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {site && site.skills.length > 0 && (
+            <ul className="panel__tags">
+              {site.skills.map((t) => (
+                <li key={t} className="panel__tag" data-line>
+                  {t}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
-      {m.items && (
+      {/* 来历：实时个人条目 */}
+      {m.id === 'about' && site && site.aboutItems.length > 0 && (
         <ul className="panel__items">
-          {m.items.map((it) => (
-            <InfoRow key={it.label} it={it} />
+          {site.aboutItems.map((it) => (
+            <ProfileRow key={it.id} it={it} />
           ))}
         </ul>
       )}
 
-      {m.tags && (
-        <ul className="panel__tags">
-          {m.tags.map((t) => (
-            <li key={t} className="panel__tag" data-line>
-              {t}
-            </li>
-          ))}
-        </ul>
+      {/* 传书：实时联系方式 + 飞鸽传书留言入口 */}
+      {m.id === 'contact' && (
+        <>
+          {site && site.contactItems.length > 0 && (
+            <ul className="panel__items">
+              {site.contactItems.map((it) => (
+                <ProfileRow key={it.id} it={it} />
+              ))}
+            </ul>
+          )}
+          <div className="panel__cta-wrap" data-line>
+            <button type="button" className="panel__cta" onClick={onOpenMessage}>
+              提笔传书 · 访客留言
+            </button>
+          </div>
+        </>
       )}
     </>
   )
 }
 
 /**
- * 各模块的标题 / 信息面板。
- * 所有面板常驻 DOM，切换时旧面板轻柔退场、新面板错峰入场；遵循 prefers-reduced-motion。
+ * 各模块的标题 / 信息面板（全部内容来自后端 API，异步就绪后自动显隐入场）。
  */
-export function ModulePanel({ active, fallback = false, onOpenArticle }: Props) {
+export function ModulePanel({
+  active,
+  fallback = false,
+  site,
+  articles,
+  projects,
+  loading,
+  error,
+  onRetry,
+  onOpenArticle,
+  onOpenMessage,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const prevRef = useRef<ModuleId | null>(null)
+  const dataKey = `${Boolean(site)}-${articles.length}-${projects.length}-${loading}-${Boolean(error)}`
 
   useLayoutEffect(() => {
     const root = rootRef.current
     if (!root) return
     const prev = prevRef.current
+    const moduleChanged = prev !== active
     prevRef.current = active
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const dir = prev === null ? 1 : moduleIndex(active) > moduleIndex(prev) ? 1 : -1
@@ -253,20 +335,31 @@ export function ModulePanel({ active, fallback = false, onOpenArticle }: Props) 
     root.querySelectorAll<HTMLElement>('[data-panel]').forEach((panel) => {
       const lines = panel.querySelectorAll<HTMLElement>('[data-line]')
       if (panel.dataset.panel === active) {
-        gsap.fromTo(
-          lines,
-          { autoAlpha: 0, x: reduceMotion ? 0 : dir * 48 },
-          {
+        if (moduleChanged) {
+          gsap.fromTo(
+            lines,
+            { autoAlpha: 0, x: reduceMotion ? 0 : dir * 48 },
+            {
+              autoAlpha: 1,
+              x: 0,
+              duration: reduceMotion ? 0.25 : 0.72,
+              ease: 'expo.out',
+              stagger: reduceMotion ? 0 : 0.06,
+              delay: first ? (reduceMotion ? 0.1 : 0.45) : reduceMotion ? 0.05 : 0.28,
+              overwrite: true,
+            },
+          )
+        } else {
+          // 异步数据到达：平滑显现当前模块新渲染出来的行
+          gsap.to(lines, {
             autoAlpha: 1,
             x: 0,
-            duration: reduceMotion ? 0.25 : 0.72,
-            ease: 'expo.out',
-            stagger: reduceMotion ? 0 : 0.06,
-            delay: first ? (reduceMotion ? 0.1 : 0.65) : reduceMotion ? 0.05 : 0.28,
+            duration: reduceMotion ? 0.15 : 0.35,
+            ease: 'power2.out',
             overwrite: true,
-          },
-        )
-      } else if (first) {
+          })
+        }
+      } else if (first || !moduleChanged) {
         gsap.set(lines, { autoAlpha: 0 })
       } else {
         gsap.to(lines, {
@@ -279,7 +372,7 @@ export function ModulePanel({ active, fallback = false, onOpenArticle }: Props) 
         })
       }
     })
-  }, [active, fallback])
+  }, [active, fallback, dataKey])
 
   return (
     <div className="panels" ref={rootRef}>
@@ -294,7 +387,18 @@ export function ModulePanel({ active, fallback = false, onOpenArticle }: Props) 
             aria-hidden={m.id !== active}
             inert={m.id !== active || undefined}
           >
-            <PanelBody m={m} fallback={fallback} onOpenArticle={onOpenArticle} />
+            <PanelBody
+              m={m}
+              fallback={fallback}
+              site={site}
+              articles={articles}
+              projects={projects}
+              loading={loading}
+              error={error}
+              onRetry={onRetry}
+              onOpenArticle={onOpenArticle}
+              onOpenMessage={onOpenMessage}
+            />
           </section>
         ))}
       </div>
