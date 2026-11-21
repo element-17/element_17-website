@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.mywebsite.backend.mapper.ArticleMapper">
+
+    <sql id="ArticleFilter">
+        <where>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="tag != null and tag != ''">
+                AND tag = #{tag}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%') OR summary LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectPage" resultType="org.mywebsite.backend.model.entity.Article">
+        SELECT id, slug, title, tag, summary, external_url, status, pinned, view_count, published_at, created_at, updated_at
+        FROM article
+        <include refid="ArticleFilter"/>
+        ORDER BY pinned DESC, COALESCE(published_at, created_at) DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*)
+        FROM article
+        <include refid="ArticleFilter"/>
+    </select>
+
+    <select id="findById" resultType="org.mywebsite.backend.model.entity.Article">
+        SELECT id, slug, title, tag, summary, content, external_url, status, pinned, view_count, published_at, created_at, updated_at
+        FROM article
+        WHERE id = #{id}
+    </select>
+
+    <select id="findBySlug" resultType="org.mywebsite.backend.model.entity.Article">
+        SELECT id, slug, title, tag, summary, content, external_url, status, pinned, view_count, published_at, created_at, updated_at
+        FROM article
+        WHERE slug = #{slug}
+    </select>
+
+    <select id="findPublishedBySlug" resultType="org.mywebsite.backend.model.entity.Article">
+        SELECT id, slug, title, tag, summary, content, external_url, status, pinned, view_count, published_at, created_at, updated_at
+        FROM article
+        WHERE slug = #{slug} AND status = 'PUBLISHED'
+    </select>
+
+    <select id="countPublishedByTag" resultType="org.mywebsite.backend.model.vo.TagCountVO">
+        SELECT tag, COUNT(*) AS count
+        FROM article
+        WHERE status = 'PUBLISHED'
+        GROUP BY tag
+        ORDER BY count DESC, tag ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO article (slug, title, tag, summary, content, external_url, status, pinned, view_count, published_at)
+        VALUES (#{slug}, #{title}, #{tag}, #{summary}, #{content}, #{externalUrl}, #{status}, #{pinned}, #{viewCount}, #{publishedAt})
+    </insert>
+
+    <update id="update">
+        UPDATE article
+        SET slug = #{slug},
+            title = #{title},
+            tag = #{tag},
+            summary = #{summary},
+            content = #{content},
+            external_url = #{externalUrl},
+            status = #{status},
+            pinned = #{pinned},
+            published_at = #{publishedAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE article
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="pinned != null">pinned = #{pinned},</if>
+            <if test="publishedAt != null">published_at = #{publishedAt},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="incrementViewCountBySlug">
+        UPDATE article
+        SET view_count = view_count + #{delta}
+        WHERE slug = #{slug}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM article WHERE id = #{id}
+    </delete>
+
+</mapper>

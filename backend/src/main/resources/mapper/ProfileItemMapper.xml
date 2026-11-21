@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.mywebsite.backend.mapper.ProfileItemMapper">
+
+    <select id="findVisible" resultType="org.mywebsite.backend.model.entity.ProfileItem">
+        SELECT id, section, label, meta, copy_value, href, sort_order, visible, created_at, updated_at
+        FROM profile_item
+        WHERE visible = 1
+        ORDER BY section ASC, sort_order ASC, id ASC
+    </select>
+
+    <select id="findAll" resultType="org.mywebsite.backend.model.entity.ProfileItem">
+        SELECT id, section, label, meta, copy_value, href, sort_order, visible, created_at, updated_at
+        FROM profile_item
+        ORDER BY section ASC, sort_order ASC, id ASC
+    </select>
+
+    <delete id="deleteAll">
+        DELETE FROM profile_item
+    </delete>
+
+    <insert id="insertBatch">
+        INSERT INTO profile_item (section, label, meta, copy_value, href, sort_order, visible)
+        VALUES
+        <foreach collection="items" item="it" separator=",">
+            (#{it.section}, #{it.label}, #{it.meta}, #{it.copyValue}, #{it.href}, #{it.sortOrder}, #{it.visible})
+        </foreach>
+    </insert>
+
+</mapper>

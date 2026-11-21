@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.mywebsite.backend.mapper.SkillTagMapper">
+
+    <select id="findAllOrdered" resultType="org.mywebsite.backend.model.entity.SkillTag">
+        SELECT id, name, sort_order, created_at
+        FROM skill_tag
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <delete id="deleteAll">
+        DELETE FROM skill_tag
+    </delete>
+
+    <insert id="insertBatch">
+        INSERT INTO skill_tag (name, sort_order)
+        VALUES
+        <foreach collection="tags" item="t" separator=",">
+            (#{t.name}, #{t.sortOrder})
+        </foreach>
+    </insert>
+
+</mapper>

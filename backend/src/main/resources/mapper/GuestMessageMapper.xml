@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.mywebsite.backend.mapper.GuestMessageMapper">
+
+    <select id="selectPage" resultType="org.mywebsite.backend.model.entity.GuestMessage">
+        SELECT id, nickname, email, content, ip_address, user_agent, is_read, created_at
+        FROM guest_message
+        <where>
+            <if test="isRead != null">
+                AND is_read = #{isRead}
+            </if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countPage" resultType="long">
+        SELECT COUNT(*)
+        FROM guest_message
+        <where>
+            <if test="isRead != null">
+                AND is_read = #{isRead}
+            </if>
+        </where>
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*)
+        FROM guest_message
+        WHERE is_read = 0
+    </select>
+
+    <select id="findById" resultType="org.mywebsite.backend.model.entity.GuestMessage">
+        SELECT id, nickname, email, content, ip_address, user_agent, is_read, created_at
+        FROM guest_message
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO guest_message (nickname, email, content, ip_address, user_agent, is_read)
+        VALUES (#{nickname}, #{email}, #{content}, #{ipAddress}, #{userAgent}, #{isRead})
+    </insert>
+
+    <update id="updateRead">
+        UPDATE guest_message
+        SET is_read = #{isRead}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM guest_message WHERE id = #{id}
+    </delete>
+
+</mapper>
