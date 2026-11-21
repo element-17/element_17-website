@@ -10,12 +10,6 @@ interface LampGroup {
   base: number
 }
 
-interface Fire {
-  flame: THREE.Sprite
-  halo: THREE.Sprite
-  phase: number
-}
-
 /** 炊烟：烟囱口往上飘的一团雾，循环上升并淡出 */
 interface Smoke {
   sprites: THREE.Sprite[]
@@ -42,15 +36,14 @@ const DEAD_TREES: [number, number, number][] = [
   [14, -85, 8],
 ]
 
-/** 远处的村落：房屋剪影 + 分组闪烁的窗灯 + 烟囱炊烟 + 几处篝火 + 枯树（全部静态合并） */
+/** 远处的村落：房屋剪影 + 分组闪烁的窗灯 + 烟囱炊烟 + 枯树（全部静态合并） */
 export class Village {
   readonly group = new THREE.Group()
   private lampGroups: LampGroup[] = []
-  private fires: Fire[] = []
   private smokes: Smoke[] = []
   private smokeActive = true
 
-  constructor(flameTex: THREE.Texture) {
+  constructor() {
     const rand = seededRandom(52)
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0x1d1a30,
@@ -114,42 +107,6 @@ export class Village {
     }
 
     this.buildDeadTrees(rand)
-
-    // 远村篝火：60m 外改用柔光晕 Sprite 代替全局 PointLight，省去所有物体片元着色器里 3 盏点光计算
-    const haloTex = makeRadialTexture([
-      [0, 'rgba(255,155,70,0.48)'],
-      [0.4, 'rgba(235,95,38,0.16)'],
-      [1, 'rgba(200,60,20,0)'],
-    ])
-    for (const x of [10, 34]) {
-      const flame = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: flameTex,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          fog: false,
-          toneMapped: false,
-        }),
-      )
-      flame.center.set(0.5, 0.15)
-      flame.position.set(x, 0.15, -62)
-
-      const halo = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: haloTex,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          fog: false,
-          toneMapped: false,
-          opacity: 0.7,
-        }),
-      )
-      halo.position.set(x, 1.3, -61.5)
-      halo.scale.set(9.5, 6.5, 1)
-
-      this.group.add(flame, halo)
-      this.fires.push({ flame, halo, phase: rand() * 10 })
-    }
 
     mergeStatic(this.group)
   }
@@ -280,13 +237,6 @@ export class Village {
     for (const { mat, phase, base } of this.lampGroups) {
       const f = 0.78 + 0.2 * Math.sin(time * (1.8 + (phase % 2.4)) + phase) + 0.06 * Math.sin(time * 13 + phase * 3)
       mat.emissiveIntensity = base * f
-    }
-    for (const { flame, halo, phase } of this.fires) {
-      const f = 0.82 + 0.1 * Math.sin(time * 11.3 + phase) + 0.06 * Math.sin(time * 23.7 + phase * 2) + 0.04 * Math.sin(time * 37.1)
-      flame.scale.set(1.3 * (0.9 + 0.1 * f), 2.6 * f, 1)
-      flame.material.opacity = 0.6 + 0.3 * f
-      halo.scale.set(9.2 * (0.94 + 0.08 * f), 6.2 * (0.94 + 0.08 * f), 1)
-      halo.material.opacity = 0.52 + 0.22 * f
     }
     if (!this.smokeActive) return
     for (const { sprites, origin, height, speed, phase } of this.smokes) {

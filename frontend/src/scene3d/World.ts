@@ -17,7 +17,6 @@ import { Environment, FOG_COLOR, FOG_DENSITY, MOON_DIR, MOON_DISTANCE, SUN_DIR }
 import { DETAIL_LAYER } from './merge'
 import { StarryBackground } from './StarryBackground'
 import { StickmanSwordsman } from './StickmanSwordsman'
-import { makeRadialTexture } from './textures'
 import { Village } from './Village'
 
 /** 3D 世界：渲染器 + 场景装配 + 帧循环 + 画质调度 + 古卷投影与点击交互 */
@@ -114,13 +113,7 @@ export class World {
     this.shoreProps = new ShoreProps()
     this.scene.add(this.boat.group, this.dock.group, this.shoreProps.group)
 
-    const flameTex = makeRadialTexture([
-      [0, 'rgba(255,244,214,1)'],
-      [0.25, 'rgba(255,170,70,0.85)'],
-      [0.6, 'rgba(230,80,30,0.3)'],
-      [1, 'rgba(200,50,20,0)'],
-    ])
-    this.village = new Village(flameTex)
+    this.village = new Village()
     this.scene.add(this.village.group)
 
     // 跟随镜头的柔冷补光：放在镜头附近且亮度克制，避免近景俯拍时把地面或铁砧打出一块强反光
