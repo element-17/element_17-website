@@ -116,7 +116,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     body = (await res.json()) as ApiResponse<T>
   } catch {
-    throw new ApiError(`服务响应格式异常（HTTP ${res.status}）`, -1, res.status)
+    const hint =
+      res.status >= 502 && res.status <= 504
+        ? `无法连接到后端服务（HTTP ${res.status}），请确认后端已启动`
+        : `服务响应格式异常（HTTP ${res.status}）`
+    throw new ApiError(hint, -1, res.status)
   }
 
   if (!res.ok || body.code !== 0) {

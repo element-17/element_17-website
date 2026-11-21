@@ -350,13 +350,14 @@ export function ModulePanel({
             },
           )
         } else {
-          // 异步数据到达：平滑显现当前模块新渲染出来的行
+          // 异步数据到达：杀掉可能仍在等待 delay 的旧入场补间，确保当前模块所有行可靠显现
+          gsap.killTweensOf(lines)
+          gsap.set(lines, { visibility: 'visible' })
           gsap.to(lines, {
-            autoAlpha: 1,
+            opacity: 1,
             x: 0,
             duration: reduceMotion ? 0.15 : 0.35,
             ease: 'power2.out',
-            overwrite: true,
           })
         }
       } else if (first || !moduleChanged) {

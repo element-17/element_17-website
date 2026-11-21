@@ -135,6 +135,8 @@
   }
 
   &__retry {
+    flex: none;
+    white-space: nowrap;
     padding: 3px 10px;
     border: 1px solid rgba(245, 185, 190, 0.55);
     border-radius: 2px;
