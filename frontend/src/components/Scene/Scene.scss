@@ -13,12 +13,97 @@
     height: 100%;
   }
 
-  // WebGL 不可用时的兜底暮色：暗紫天幕 + 残霞 + 星点 + 月 + 紫山影
+  // WebGL 不可用时的兜底画面：自动适配黑夜（暮紫）与黎明（破晓暖金）
   &--fallback {
-    background: linear-gradient(180deg, $c-night-0 0%, $c-night-1 34%, #3a1c52 62%, #4a2352 80%, #2c1b47 100%);
+    background: linear-gradient(180deg, #4b7fc4 0%, #86aeda 34%, #d8c0c8 62%, #f4caa4 82%, #7d859c 100%);
 
     .scene__canvas {
       display: none;
+    }
+
+    .scene__fallback-stars {
+      opacity: 0;
+    }
+
+    .scene__fallback-moon {
+      background: radial-gradient(circle at 46% 46%, #fffdf5 0%, #ffe6a8 48%, rgba(255, 198, 122, 0.42) 70%, transparent 80%);
+      box-shadow: 0 0 70px 30px rgba(255, 196, 120, 0.36);
+    }
+
+    .scene__fallback-mountains {
+      background: linear-gradient(180deg, transparent 46%, rgba(105, 112, 146, 0.9) 46.2%, #6d7396 60%, transparent 62%);
+    }
+
+    .scene__fallback-river {
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255, 232, 184, 0.65) 0%,
+          rgba(255, 200, 144, 0.34) 30%,
+          rgba(235, 186, 152, 0.14) 62%,
+          transparent 100%
+        ) 62% 0 / 16% 100% no-repeat,
+        linear-gradient(180deg, rgba(210, 174, 158, 0.92) 0%, rgba(112, 134, 168, 0.96) 36%, #506c8e 78%, #344c6b 100%);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:has(> head > meta[name='color-scheme'][content='light dark']) & {
+        background: linear-gradient(180deg, $c-night-0 0%, $c-night-1 34%, #3a1c52 62%, #4a2352 80%, #2c1b47 100%);
+
+        .scene__fallback-stars {
+          opacity: 1;
+        }
+
+        .scene__fallback-moon {
+          background: radial-gradient(circle at 42% 38%, #fbf8ff 0%, #e6dcff 46%, rgba(206, 184, 255, 0.3) 64%, transparent 74%);
+          box-shadow: 0 0 60px 24px rgba(196, 172, 255, 0.18);
+        }
+
+        .scene__fallback-mountains {
+          background: linear-gradient(180deg, transparent 46%, rgba(14, 8, 26, 0.92) 46.2%, #191130 60%, transparent 62%);
+        }
+
+        .scene__fallback-river {
+          background:
+            linear-gradient(
+              180deg,
+              rgba(226, 216, 255, 0.42) 0%,
+              rgba(206, 190, 255, 0.2) 26%,
+              rgba(180, 160, 235, 0.07) 58%,
+              transparent 100%
+            ) 62% 0 / 13% 100% no-repeat,
+            linear-gradient(180deg, rgba(74, 52, 96, 0.95) 0%, rgba(38, 26, 58, 0.98) 34%, #150e26 78%, #0b0716 100%);
+        }
+      }
+    }
+
+    :root:has(> head > meta[name='color-scheme'][content='dark']) & {
+      background: linear-gradient(180deg, $c-night-0 0%, $c-night-1 34%, #3a1c52 62%, #4a2352 80%, #2c1b47 100%);
+
+      .scene__fallback-stars {
+        opacity: 1;
+      }
+
+      .scene__fallback-moon {
+        background: radial-gradient(circle at 42% 38%, #fbf8ff 0%, #e6dcff 46%, rgba(206, 184, 255, 0.3) 64%, transparent 74%);
+        box-shadow: 0 0 60px 24px rgba(196, 172, 255, 0.18);
+      }
+
+      .scene__fallback-mountains {
+        background: linear-gradient(180deg, transparent 46%, rgba(14, 8, 26, 0.92) 46.2%, #191130 60%, transparent 62%);
+      }
+
+      .scene__fallback-river {
+        background:
+          linear-gradient(
+            180deg,
+            rgba(226, 216, 255, 0.42) 0%,
+            rgba(206, 190, 255, 0.2) 26%,
+            rgba(180, 160, 235, 0.07) 58%,
+            transparent 100%
+          ) 62% 0 / 13% 100% no-repeat,
+          linear-gradient(180deg, rgba(74, 52, 96, 0.95) 0%, rgba(38, 26, 58, 0.98) 34%, #150e26 78%, #0b0716 100%);
+      }
     }
   }
 

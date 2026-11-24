@@ -11,11 +11,11 @@ export interface ModuleDef {
 }
 
 export const MODULES: ModuleDef[] = [
-  { id: 'home', index: '00', label: '归处', en: 'Home', side: 'left' },
-  { id: 'blog', index: '01', label: '藏卷', en: 'Blog', side: 'left' },
-  { id: 'projects', index: '02', label: '铸剑', en: 'Projects', side: 'right' },
-  { id: 'about', index: '03', label: '来历', en: 'About', side: 'right' },
-  { id: 'contact', index: '04', label: '传书', en: 'Contact', side: 'left' },
+  { id: 'home', index: '00', label: '首页', en: 'Home', side: 'left' },
+  { id: 'blog', index: '01', label: '随笔', en: 'Blog', side: 'left' },
+  { id: 'projects', index: '02', label: '作品', en: 'Projects', side: 'right' },
+  { id: 'about', index: '03', label: '关于', en: 'About', side: 'right' },
+  { id: 'contact', index: '04', label: '联系', en: 'Contact', side: 'left' },
 ]
 
 export const MODULE_IDS = MODULES.map((m) => m.id)

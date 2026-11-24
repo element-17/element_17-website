@@ -10,10 +10,21 @@ import type { ModuleId } from '../config/modules'
 import type { QualityLevel, QualityPreset } from '../config/quality'
 import { QUALITY_PRESETS } from '../config/quality'
 import { CAMP } from '../config/shots'
+import type { ThemeScheme } from '../config/theme'
 import { Boat, Dock, ShoreProps } from './Boat'
 import { Campfire } from './Campfire'
 import { CampProps } from './CampProps'
-import { Environment, FOG_COLOR, FOG_DENSITY, MOON_DIR, MOON_DISTANCE, SUN_DIR } from './Environment'
+import {
+  DAWN_FOG_COLOR,
+  DAWN_FOG_DENSITY,
+  DAWN_SUN_DIR,
+  Environment,
+  FOG_COLOR,
+  FOG_DENSITY,
+  MOON_DIR,
+  MOON_DISTANCE,
+  SUN_DIR,
+} from './Environment'
 import { DETAIL_LAYER } from './merge'
 import { StarryBackground } from './StarryBackground'
 import { StickmanSwordsman } from './StickmanSwordsman'
@@ -36,6 +47,8 @@ export class World {
   private dock: Dock
   private shoreProps: ShoreProps
   private composer: EffectComposer | null = null
+  private bloomPass: UnrealBloomPass | null = null
+  private fog: THREE.FogExp2
   private village: Village
   private keyLight: THREE.PointLight
   private container: HTMLElement
@@ -45,9 +58,22 @@ export class World {
   private preset: QualityPreset
   private onReady?: () => void
   private onSelect?: (id: ModuleId) => void
+  private onToggleTheme?: () => void
   private readyFired = false
   /** 页面不可见时停掉渲染循环，回来再恢复 */
   private paused = false
+  /** 昼夜过渡：0 = 黑夜，1 = 黎明（按真实耗时补间，低帧率也能如期落定） */
+  private dawn = 0
+  private targetDawn = 0
+  private dawnAnim: { from: number; to: number; start: number; duration: number } | null = null
+  private reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  private nightBg = new THREE.Color(0x05040f)
+  private dawnBg = new THREE.Color(0x5d98d8)
+  private nightFog = new THREE.Color(FOG_COLOR)
+  private dawnFog = new THREE.Color(DAWN_FOG_COLOR)
+  private curFogColor = new THREE.Color(FOG_COLOR)
+  private keyNightColor = new THREE.Color(0xc0b4ff)
+  private keyDawnColor = new THREE.Color(0xfff1dc)
 
   // 轻量点击拾取（仅球体求交，不逐帧跑网格 Raycast）
   private raycaster = new THREE.Raycaster()
@@ -63,14 +89,19 @@ export class World {
     quality: QualityLevel,
     /** 初始站点：直接从 hash 进来时，相机第一帧就要落在正确的位置上 */
     initialModule: ModuleId,
+    initialTheme: ThemeScheme,
     onReady?: () => void,
     onSelect?: (id: ModuleId) => void,
+    onToggleTheme?: () => void,
   ) {
     this.canvas = canvas
     this.container = canvas.parentElement ?? canvas
     this.onReady = onReady
     this.onSelect = onSelect
+    this.onToggleTheme = onToggleTheme
     this.preset = QUALITY_PRESETS[quality]
+    this.dawn = initialTheme === 'light' ? 1 : 0
+    this.targetDawn = this.dawn
 
     // 主相机同时看默认层(0)与细碎陈设层(DETAIL_LAYER)；中画质倒影相机只看默认层
     this.camera.layers.enable(DETAIL_LAYER)
@@ -89,9 +120,10 @@ export class World {
     this.renderer.info.autoReset = false
 
     this.scene.background = new THREE.Color(0x05040f)
-    this.scene.fog = new THREE.FogExp2(FOG_COLOR, FOG_DENSITY)
+    this.fog = new THREE.FogExp2(FOG_COLOR, FOG_DENSITY)
+    this.scene.fog = this.fog
 
-    this.sky = new StarryBackground(MOON_DIR, MOON_DISTANCE, SUN_DIR, FOG_COLOR)
+    this.sky = new StarryBackground(MOON_DIR, MOON_DISTANCE, SUN_DIR, DAWN_SUN_DIR, FOG_COLOR)
     this.env = new Environment()
     this.fire = new Campfire()
     this.fire.group.position.set(CAMP.fire.x, 0, CAMP.fire.z)
@@ -123,6 +155,7 @@ export class World {
     this.scene.add(this.sky.group, this.env.group, this.fire.group, this.camera)
 
     this.applyPresetToSubsystems()
+    this.applyDawn(this.dawn)
 
     this.controller = new SceneTransitionController(this.camera, uiRoot)
     this.controller.goTo(initialModule)
@@ -150,6 +183,19 @@ export class World {
   goTo(id: ModuleId) {
     this.controller.goTo(id)
     this.hero.setModule(id)
+  }
+
+  setTheme(scheme: ThemeScheme) {
+    const next = scheme === 'light' ? 1 : 0
+    if (next === this.targetDawn) return
+    this.targetDawn = next
+    if (this.reduceMotion) {
+      this.dawn = next
+      this.dawnAnim = null
+      this.applyDawn(this.dawn)
+      return
+    }
+    this.dawnAnim = { from: this.dawn, to: next, start: performance.now(), duration: 0.85 }
   }
 
   setQuality(id: QualityLevel) {
@@ -220,13 +266,35 @@ export class World {
     this.village.applyQuality(this.preset)
   }
 
+  private applyDawn(dawn: number) {
+    ;(this.scene.background as THREE.Color).copy(this.nightBg).lerp(this.dawnBg, dawn)
+    this.curFogColor.copy(this.nightFog).lerp(this.dawnFog, dawn)
+    const fogDensity = THREE.MathUtils.lerp(FOG_DENSITY, DAWN_FOG_DENSITY, dawn)
+    this.fog.color.copy(this.curFogColor)
+    this.fog.density = fogDensity
+    this.keyLight.color.copy(this.keyNightColor).lerp(this.keyDawnColor, dawn)
+    if (this.bloomPass) {
+      this.bloomPass.strength = THREE.MathUtils.lerp(0.42, 0.05, dawn)
+      this.bloomPass.threshold = THREE.MathUtils.lerp(0.82, 1.05, dawn)
+    }
+    this.sky.setDawn(dawn)
+    this.env.setDawn(dawn, this.curFogColor, fogDensity)
+  }
+
   /** 按需创建辉光后期：低画质下永不分配 4x MSAA HalfFloat 帧缓冲 */
   private ensureComposer() {
     if (this.composer) return this.composer
     const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 })
     const composer = new EffectComposer(this.renderer, target)
     composer.addPass(new RenderPass(this.scene, this.camera))
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.42, 0.75, 0.82))
+    const bloom = new UnrealBloomPass(
+      new THREE.Vector2(1, 1),
+      THREE.MathUtils.lerp(0.42, 0.05, this.dawn),
+      0.75,
+      THREE.MathUtils.lerp(0.82, 1.05, this.dawn),
+    )
+    this.bloomPass = bloom
+    composer.addPass(bloom)
     composer.addPass(new OutputPass())
     this.composer = composer
     return composer
@@ -259,7 +327,7 @@ export class World {
     }
   }
 
-  private pickProp(clientX: number, clientY: number): ModuleId | null {
+  private pickTarget(clientX: number, clientY: number): { kind: 'module'; id: ModuleId } | { kind: 'celestial' } | null {
     const rect = this.canvas.getBoundingClientRect()
     if (!rect.width || !rect.height) return null
     this.ndc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1)
@@ -277,7 +345,15 @@ export class World {
         }
       }
     }
-    return best
+    if (best) return { kind: 'module', id: best }
+
+    // 拾取天空中的月亮或黎明朝阳：点击切换昼夜场景
+    const celestial = this.sky.getCelestialTarget()
+    this.sphere.set(celestial.center, celestial.radius)
+    if (this.raycaster.ray.intersectSphere(this.sphere, this.hitPt)) {
+      return { kind: 'celestial' }
+    }
+    return null
   }
 
   private onPointerDown = (e: PointerEvent) => {
@@ -287,10 +363,15 @@ export class World {
   private onPointerUp = (e: PointerEvent) => {
     const start = this.downPos
     this.downPos = null
-    if (!start || !this.onSelect) return
+    if (!start) return
     if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) return
-    const hit = this.pickProp(e.clientX, e.clientY)
-    if (hit) this.onSelect(hit)
+    const hit = this.pickTarget(e.clientX, e.clientY)
+    if (!hit) return
+    if (hit.kind === 'celestial') {
+      this.onToggleTheme?.()
+    } else if (this.onSelect) {
+      this.onSelect(hit.id)
+    }
   }
 
   private onPointerMove = (e: PointerEvent) => {
@@ -298,7 +379,10 @@ export class World {
     const now = performance.now()
     if (now - this.lastHoverAt < 80) return
     this.lastHoverAt = now
-    this.canvas.style.cursor = this.pickProp(e.clientX, e.clientY) ? 'pointer' : ''
+    const hit = this.pickTarget(e.clientX, e.clientY)
+    this.canvas.style.cursor = hit ? 'pointer' : ''
+    this.canvas.title =
+      hit?.kind === 'celestial' ? (this.dawn < 0.5 ? '点击月亮切换至白天场景' : '点击太阳切换至黑夜场景') : ''
   }
 
   private tick = (time: number, deltaMs: number) => {
@@ -306,6 +390,18 @@ export class World {
     const dt = Math.min(deltaMs / 1000, 0.05)
     const { controller } = this
     const { mouse, state } = controller
+
+    // 按真实耗时平滑推进昼夜过渡
+    if (this.dawnAnim) {
+      const t = Math.min(1, (performance.now() - this.dawnAnim.start) / 1000 / this.dawnAnim.duration)
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
+      this.dawn = this.dawnAnim.from + (this.dawnAnim.to - this.dawnAnim.from) * ease
+      if (t >= 1) {
+        this.dawn = this.dawnAnim.to
+        this.dawnAnim = null
+      }
+      this.applyDawn(this.dawn)
+    }
 
     controller.update(this.width, this.height)
 
@@ -315,17 +411,18 @@ export class World {
 
     // 藏卷近景俯拍时压低随身冷补光，把古卷彻底交给篝火暖光
     const isBlog = controller.current === 'blog'
-    this.keyLight.intensity += ((isBlog ? 0.45 : 1.8) - this.keyLight.intensity) * Math.min(1, dt * 5)
+    const baseKey = THREE.MathUtils.lerp(1.8, 0.85, this.dawn)
+    this.keyLight.intensity += ((isBlog ? 0.45 : baseKey) - this.keyLight.intensity) * Math.min(1, dt * 5)
     this.keyLight.position.set(mouse.x * 1.8, 0.9 - mouse.y * 1.0, -0.6)
     this.sky.update(time)
     this.env.update(time, dt)
-    this.fire.update(time, state.fire)
-    this.village.update(time)
-    this.props.update(time)
-    this.boat.update(time)
+    this.fire.update(time, state.fire * (1 - this.dawn * 0.72))
+    this.village.update(time, this.dawn)
+    this.props.update(time, this.dawn)
+    this.boat.update(time, this.dawn)
     this.hero.update(time, dt, mouse.x * 0.12)
 
-    this.renderer.toneMappingExposure = state.exposure
+    this.renderer.toneMappingExposure = state.exposure * THREE.MathUtils.lerp(1, 1.0, this.dawn)
     if (this.preset.bloom) this.ensureComposer().render()
     else this.renderer.render(this.scene, this.camera)
 

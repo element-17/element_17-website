@@ -1,9 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- 暗紫夜色底 + 朱红印章 + 白剑 -->
-  <rect width="64" height="64" rx="14" fill="#150d33"/>
-  <rect x="9" y="9" width="46" height="46" rx="6" fill="#c9353f"/>
-  <path d="M32 14 L35.2 37 L28.8 37 Z" fill="#f6f1ff"/>
-  <rect x="23.5" y="37" width="17" height="3.6" rx="1.8" fill="#f6f1ff"/>
-  <rect x="29.8" y="40.6" width="4.4" height="8.4" rx="2" fill="#f6f1ff"/>
-  <circle cx="32" cy="51" r="2.8" fill="#f6f1ff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#221449"/>
+      <stop offset="55%" stop-color="#110929"/>
+      <stop offset="100%" stop-color="#060412"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#d8c8ff" stop-opacity="0.52"/>
+      <stop offset="100%" stop-color="#6c4ea8" stop-opacity="0.22"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="34" cy="30" r="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9e7bff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#9e7bff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="moon" x1="16" y1="18" x2="46" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#e7dcff"/>
+      <stop offset="100%" stop-color="#b49be8"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="35" y1="12" x2="51" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fff8eb"/>
+      <stop offset="100%" stop-color="#ff9b5e"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bg)" stroke="url(#rim)" stroke-width="2"/>
+  <circle cx="34" cy="30" r="24" fill="url(#glow)"/>
+
+  <path
+    d="M 27.86 17.14 A 16.5 16.5 0 1 0 45.93 37.79 A 13.8 13.8 0 0 1 27.86 17.14 Z"
+    fill="url(#moon)"
+  />
+
+  <path
+    d="M 43 12.2 C 43.3 17.7 45.6 20 51.1 20.3 C 45.6 20.6 43.3 22.9 43 28.4 C 42.7 22.9 40.4 20.6 34.9 20.3 C 40.4 20 42.7 17.7 43 12.2 Z"
+    fill="url(#spark)"
+  />
 </svg>

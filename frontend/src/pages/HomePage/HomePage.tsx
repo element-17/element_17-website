@@ -24,6 +24,13 @@ import {
   saveQuality,
   type QualityLevel,
 } from '../../config/quality'
+import {
+  resolveScheme,
+  subscribeThemeChanges,
+  syncSchemeMeta,
+  toggleThemeScheme,
+  type ThemeScheme,
+} from '../../config/theme'
 import './HomePage.scss'
 
 // three 体积较大，拆成独立 chunk，首帧由「入夜」加载提示兜住
@@ -45,7 +52,7 @@ const isEditableTarget = (target: EventTarget | null) => {
 export function HomePage() {
   const [module, setModule] = useState<ModuleId>(initialModule)
   const [quality, setQuality] = useState<QualityLevel>(initialQuality)
-  const [ready, setReady] = useState(false)
+  const [theme, setTheme] = useState<ThemeScheme>(() => resolveScheme())
   const [fallback, setFallback] = useState(false)
 
   // 实时后端数据（无静态兜底）
@@ -223,28 +230,70 @@ export function HomePage() {
     saveQuality(q)
   }
 
+  const handleToggleTheme = () => {
+    setTheme(toggleThemeScheme())
+  }
+
+  useEffect(() => {
+    // 首次挂载同步 theme-color meta，并监听系统昼夜偏好及跨标签页切换
+    try {
+      const stored = window.localStorage.getItem('color-scheme')
+      syncSchemeMeta(stored === 'light' || stored === 'dark' ? stored : null)
+    } catch {
+      syncSchemeMeta(null)
+    }
+    return subscribeThemeChanges(setTheme)
+  }, [])
+
   return (
     <main className="home" data-stage>
       <header className="home__brand" data-float="4">
-        <span className="home__seal">{site?.site.name ? site.site.name.slice(0, 1) : '剑'}</span>
+        <span className="home__seal" aria-hidden="true">
+          <img src="/favicon.svg?v=2" alt="" className="home__seal-img" width={30} height={30} />
+        </span>
         <span className="home__brand-name">{site?.site.nameEn ?? ''}</span>
       </header>
 
       <div className="home__side" data-float="4">
-        <p className="home__hint">← → / 滚轮 切换章节</p>
-        <div className="home__quality" role="group" aria-label="画质档位">
-          {(Object.keys(QUALITY_LABELS) as QualityLevel[]).map((q) => (
-            <button
-              key={q}
-              type="button"
-              className={cn('home__quality-btn', { 'is-active': quality === q })}
-              aria-label={`画质：${QUALITY_LABELS[q]}`}
-              aria-pressed={quality === q}
-              onClick={() => pickQuality(q)}
-            >
-              {QUALITY_LABELS[q]}
-            </button>
-          ))}
+        <p className="home__hint">← → / 滚轮 切换页面 · 点击日月切换昼夜</p>
+        <div className="home__controls">
+          <button
+            type="button"
+            className="home__theme-btn"
+            onClick={handleToggleTheme}
+            title={theme === 'dark' ? '切换至白天晴空场景（也可直接点击月亮）' : '切换至黑夜场景（也可直接点击太阳）'}
+          >
+            <span className="home__theme-opt home__theme-opt--light">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+              <span>白天</span>
+              <span className="sr-only">，点击切换为黑夜模式</span>
+            </span>
+            <span className="home__theme-opt home__theme-opt--dark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+              <span>黑夜</span>
+              <span className="sr-only">，点击切换为白天模式</span>
+            </span>
+          </button>
+
+          <div className="home__quality" role="group" aria-label="画质档位">
+            {(Object.keys(QUALITY_LABELS) as QualityLevel[]).map((q) => (
+              <button
+                key={q}
+                type="button"
+                className={cn('home__quality-btn', { 'is-active': quality === q })}
+                aria-label={`画质：${QUALITY_LABELS[q]}`}
+                aria-pressed={quality === q}
+                onClick={() => pickQuality(q)}
+              >
+                {QUALITY_LABELS[q]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -280,8 +329,9 @@ export function HomePage() {
         <Scene
           module={module}
           quality={quality}
-          onReady={() => setReady(true)}
+          theme={theme}
           onSelectModule={setModule}
+          onToggleTheme={handleToggleTheme}
           onFallbackChange={setFallback}
         />
       </Suspense>
@@ -300,11 +350,6 @@ export function HomePage() {
       />
 
       <MessageDialog open={messageOpen} onClose={() => setMessageOpen(false)} />
-
-      {/* WebGL 首帧前的极简加载提示，就绪后淡出 */}
-      <div className={cn('home__boot', { 'is-done': ready })} aria-hidden="true">
-        <span className="home__boot-text">入夜</span>
-      </div>
     </main>
   )
 }

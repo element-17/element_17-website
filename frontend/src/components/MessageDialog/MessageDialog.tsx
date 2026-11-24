@@ -132,9 +132,9 @@ export function MessageDialog({ open, onClose }: Props) {
           else el.removeAttribute('aria-describedby')
         }
       })
-      setFeedback({ kind: 'ok', text: '飞鸽已启程，多谢阁下传书。' })
+      setFeedback({ kind: 'ok', text: '留言已收到，感谢来信。' })
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : '传书发送失败，请稍后重试'
+      const msg = err instanceof ApiError ? err.message : '留言发送失败，请稍后重试'
       setFeedback({ kind: 'err', text: msg })
     } finally {
       setSubmitting(false)
@@ -152,11 +152,11 @@ export function MessageDialog({ open, onClose }: Props) {
       <div className="msg-dialog__inner">
         <header className="msg-dialog__header">
           <h2 id={titleId} className="msg-dialog__title">
-            飞鸽传书
+            在线留言
           </h2>
           <form method="dialog">
-            <button type="submit" value="close" className="msg-dialog__close" aria-label="关闭传书窗口">
-              收笺
+            <button type="submit" value="close" className="msg-dialog__close" aria-label="关闭留言窗口">
+              关闭
             </button>
           </form>
         </header>
@@ -171,7 +171,7 @@ export function MessageDialog({ open, onClose }: Props) {
         >
           <div className="msg-dialog__field">
             <label htmlFor={nickId} className="msg-dialog__label">
-              阁下名号 <span aria-hidden="true">*</span>
+              昵称 <span aria-hidden="true">*</span>
             </label>
             <input
               id={nickId}
@@ -196,16 +196,16 @@ export function MessageDialog({ open, onClose }: Props) {
               <span role="img" aria-label="错误">
                 ⚠
               </span>{' '}
-              请填写称呼（1 ~ 64 字符）。
+              请填写昵称（1 ~ 64 字符）。
             </p>
           </div>
 
           <div className="msg-dialog__field">
             <label htmlFor={emailId} className="msg-dialog__label">
-              回信邮箱（选填）
+              邮箱（选填）
             </label>
             <span id={emailHintId} className="msg-dialog__hint">
-              格式示例：you@example.com，仅用于站长回信
+              格式示例：you@example.com，仅用于回复联系
             </span>
             <input
               id={emailId}
@@ -238,7 +238,7 @@ export function MessageDialog({ open, onClose }: Props) {
 
           <div className="msg-dialog__field">
             <label htmlFor={contentId} className="msg-dialog__label">
-              书信正文 <span aria-hidden="true">*</span>
+              留言内容 <span aria-hidden="true">*</span>
             </label>
             <span id={contentHintId} className="msg-dialog__hint">
               2 ~ 1000 字符
@@ -277,7 +277,7 @@ export function MessageDialog({ open, onClose }: Props) {
               {feedback?.text ?? ''}
             </p>
             <button type="submit" className="msg-dialog__submit" disabled={submitting}>
-              {submitting ? '放飞中…' : '放飞传书'}
+              {submitting ? '发送中…' : '发送留言'}
             </button>
           </div>
         </form>

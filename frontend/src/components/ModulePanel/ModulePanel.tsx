@@ -152,7 +152,7 @@ function PanelBody({
           {site?.site.nameEn ?? (loading ? 'LOADING' : 'OFFLINE')}
         </p>
         <h1 className="panel__title panel__title--hero" data-line>
-          {site?.site.name ?? (loading ? '入夜载卷中' : '服务未连接')}
+          {site?.site.name ?? (loading ? '加载中…' : '服务未连接')}
         </h1>
         <p className="panel__rule" data-line />
         {site ? (
@@ -185,7 +185,7 @@ function PanelBody({
   return (
     <>
       <p className="panel__kicker" data-line>
-        CHAPTER {m.index}
+        SECTION {m.index}
       </p>
       <h2 className="panel__title" data-line>
         {m.label}
@@ -208,12 +208,12 @@ function PanelBody({
         </div>
       )}
 
-      {/* 藏卷：WebGL 正常时文章贴在右侧 3D 古卷上；无 WebGL 兜底模式则在面板里展示实时列表 */}
+      {/* 随笔：WebGL 正常时文章贴在右侧 3D 画卷上；无 WebGL 兜底模式则在面板里展示实时列表 */}
       {m.id === 'blog' && !fallback && !error && (
         <p className="panel__cue" data-line>
           <span className="panel__cue-dot" aria-hidden="true" />
-          <span className="panel__cue-desktop">炉畔古卷已展，轻点右侧卷目展阅</span>
-          <span className="panel__cue-mobile">炉畔古卷已展，轻点下方卷目展阅</span>
+          <span className="panel__cue-desktop">点击右侧目录即可阅读全文</span>
+          <span className="panel__cue-mobile">点击下方目录即可阅读全文</span>
         </p>
       )}
       {m.id === 'blog' && fallback && !error && (
@@ -223,7 +223,7 @@ function PanelBody({
               <button type="button" className="panel__article-btn" onClick={() => onOpenArticle(art.slug)}>
                 <span className="panel__item-label">{art.title}</span>
                 <span className="panel__item-meta">
-                  {art.tag} · {art.viewCount} 阅 · {formatScrollDate(art.publishedAt)}
+                  {art.tag} · {art.viewCount} 次阅读 · {formatScrollDate(art.publishedAt)}
                 </span>
               </button>
             </li>
@@ -231,7 +231,7 @@ function PanelBody({
         </ul>
       )}
 
-      {/* 铸剑：实时作品 + 技能标签 */}
+      {/* 作品：实时作品 + 技术栈标签 */}
       {m.id === 'projects' && !error && (
         <>
           {projects.length > 0 && (
@@ -253,9 +253,9 @@ function PanelBody({
                       ) : (
                         <span className="panel__project-name">{proj.name}</span>
                       )}
-                      <span className="panel__item-meta">{proj.meta}</span>
+                      {proj.meta && <span className="panel__item-meta">{proj.meta}</span>}
                     </div>
-                    <p className="panel__project-desc">{proj.description}</p>
+                    {proj.description && <p className="panel__project-desc">{proj.description}</p>}
                   </li>
                 )
               })}
@@ -273,7 +273,7 @@ function PanelBody({
         </>
       )}
 
-      {/* 来历：实时个人条目 */}
+      {/* 关于：实时个人条目 */}
       {m.id === 'about' && site && site.aboutItems.length > 0 && (
         <ul className="panel__items">
           {site.aboutItems.map((it) => (
@@ -282,7 +282,7 @@ function PanelBody({
         </ul>
       )}
 
-      {/* 传书：实时联系方式 + 飞鸽传书留言入口 */}
+      {/* 联系：实时联系方式 + 在线留言入口 */}
       {m.id === 'contact' && (
         <>
           {site && site.contactItems.length > 0 && (
@@ -294,7 +294,7 @@ function PanelBody({
           )}
           <div className="panel__cta-wrap" data-line>
             <button type="button" className="panel__cta" onClick={onOpenMessage}>
-              提笔传书 · 访客留言
+              在线留言
             </button>
           </div>
         </>
@@ -335,30 +335,27 @@ export function ModulePanel({
     root.querySelectorAll<HTMLElement>('[data-panel]').forEach((panel) => {
       const lines = panel.querySelectorAll<HTMLElement>('[data-line]')
       if (panel.dataset.panel === active) {
-        if (moduleChanged) {
+        if (first) {
+          gsap.killTweensOf(lines)
+          gsap.set(lines, { autoAlpha: 1, x: 0 })
+        } else if (moduleChanged) {
           gsap.fromTo(
             lines,
-            { autoAlpha: 0, x: reduceMotion ? 0 : dir * 48 },
+            { autoAlpha: 0, x: reduceMotion ? 0 : dir * 28 },
             {
               autoAlpha: 1,
               x: 0,
-              duration: reduceMotion ? 0.25 : 0.72,
+              duration: reduceMotion ? 0.2 : 0.52,
               ease: 'expo.out',
-              stagger: reduceMotion ? 0 : 0.06,
-              delay: first ? (reduceMotion ? 0.1 : 0.45) : reduceMotion ? 0.05 : 0.28,
+              stagger: reduceMotion ? 0 : 0.04,
+              delay: reduceMotion ? 0.02 : 0.06,
               overwrite: true,
             },
           )
         } else {
-          // 异步数据到达：杀掉可能仍在等待 delay 的旧入场补间，确保当前模块所有行可靠显现
+          // 异步数据到达：立即显示当前模块所有行
           gsap.killTweensOf(lines)
-          gsap.set(lines, { visibility: 'visible' })
-          gsap.to(lines, {
-            opacity: 1,
-            x: 0,
-            duration: reduceMotion ? 0.15 : 0.35,
-            ease: 'power2.out',
-          })
+          gsap.set(lines, { autoAlpha: 1, x: 0 })
         }
       } else if (first || !moduleChanged) {
         gsap.set(lines, { autoAlpha: 0 })

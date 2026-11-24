@@ -1,0 +1,221 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 部署目标
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - all
+          - frontend
+          - backend
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Detect changed modules
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Determine deploy targets
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "${{ inputs.target }}" in
+              all)
+                echo "frontend=true" >> "$GITHUB_OUTPUT"
+                echo "backend=true" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+              frontend)
+                echo "frontend=true" >> "$GITHUB_OUTPUT"
+                echo "backend=false" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+              backend)
+                echo "frontend=false" >> "$GITHUB_OUTPUT"
+                echo "backend=true" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+          fi
+
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          FRONTEND=false
+          BACKEND=false
+          if echo "$CHANGED" | grep -q '^frontend/'; then
+            FRONTEND=true
+          fi
+          if echo "$CHANGED" | grep -q '^backend/'; then
+            BACKEND=true
+          fi
+
+          echo "frontend=$FRONTEND" >> "$GITHUB_OUTPUT"
+          echo "backend=$BACKEND" >> "$GITHUB_OUTPUT"
+
+  deploy-frontend:
+    name: Frontend CI & Deploy
+    needs: detect
+    if: needs.detect.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Archive dist
+        run: tar -czf /tmp/frontend-dist.tar.gz -C dist .
+
+      - name: Deploy to server via SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
+          REMOTE_TAR="/tmp/frontend-dist-${RUN_ID}.tar.gz"
+
+          scp $SSH_OPTS /tmp/frontend-dist.tar.gz "${DEPLOY_USER}@${DEPLOY_HOST}:${REMOTE_TAR}"
+
+          ssh $SSH_OPTS "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s "$REMOTE_TAR" "$DEPLOY_HOST" <<'REMOTE'
+          set -euo pipefail
+          TAR_PATH="$1"
+          TARGET_HOST="$2"
+          rm -rf /var/www/my-website.new /var/www/my-website.old
+          mkdir -p /var/www/my-website.new
+          tar -xzf "$TAR_PATH" -C /var/www/my-website.new
+          rm -f "$TAR_PATH"
+          chown -R nginx:nginx /var/www/my-website.new
+          chmod -R u=rwX,go=rX /var/www/my-website.new
+          if [ -d /var/www/my-website ]; then
+            mv /var/www/my-website /var/www/my-website.old
+          fi
+          mv /var/www/my-website.new /var/www/my-website
+          rm -rf /var/www/my-website.old
+          curl -fsS http://127.0.0.1/ -H "Host: ${TARGET_HOST}" | grep -q '<title>'
+          echo "Frontend deployed successfully."
+          REMOTE
+
+          rm -f ~/.ssh/deploy_key
+
+  deploy-backend:
+    name: Backend CI & Deploy
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Test & Package JAR
+        run: mvn -B clean package
+
+      - name: Deploy JAR & Health Check (with auto-rollback)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20"
+          JAR_FILE=$(ls target/backend-*.jar | grep -v '\.original$' | head -n 1)
+          test -n "$JAR_FILE"
+
+          scp $SSH_OPTS "$JAR_FILE" "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/my-website/app/backend.jar.new"
+
+          ssh $SSH_OPTS "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          chown mywebsite:mywebsite /opt/my-website/app/backend.jar.new
+          chmod 640 /opt/my-website/app/backend.jar.new
+
+          if [ -f /opt/my-website/app/backend.jar ]; then
+            cp -a /opt/my-website/app/backend.jar /opt/my-website/app/backend.jar.bak
+          fi
+
+          mv -f /opt/my-website/app/backend.jar.new /opt/my-website/app/backend.jar
+          systemctl restart my-website-backend
+
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8080/api/v1/health | grep -q '"status":"UP"'; then
+              echo "Backend healthy after ${i}s"
+              rm -f /opt/my-website/app/backend.jar.bak
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Backend health check failed! Rolling back to previous JAR..."
+          if [ -f /opt/my-website/app/backend.jar.bak ]; then
+            mv -f /opt/my-website/app/backend.jar.bak /opt/my-website/app/backend.jar
+            systemctl restart my-website-backend
+          fi
+          journalctl -u my-website-backend -n 40 --no-pager || true
+          exit 1
+          REMOTE
+
+          rm -f ~/.ssh/deploy_key

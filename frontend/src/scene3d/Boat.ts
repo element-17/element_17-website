@@ -136,15 +136,16 @@ export class Boat {
     this.group.rotation.y = 0.28
   }
 
-  update(time: number) {
+  update(time: number, dawn = 0) {
     this.group.position.y = this.baseY + Math.sin(time * 0.62) * 0.03
     this.group.rotation.z = Math.sin(time * 0.47 + 0.8) * 0.026
     this.group.rotation.x = Math.sin(time * 0.53 + 2.1) * 0.012
 
+    const dim = 1 - dawn * 0.68
     const f = 0.84 + 0.1 * Math.sin(time * 2.7 + this.phase) + 0.05 * Math.sin(time * 11.3 + this.phase * 1.7)
-    this.lanternMat.emissiveIntensity = 1.65 * f + 0.45
+    this.lanternMat.emissiveIntensity = (1.65 * f + 0.45) * dim
     this.halo.scale.setScalar(1.85 * (0.92 + 0.12 * f))
-    this.halo.material.opacity = 0.65 * f + 0.18
+    this.halo.material.opacity = (0.65 * f + 0.18) * dim
   }
 }
 

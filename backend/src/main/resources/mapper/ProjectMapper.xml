@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.mywebsite.backend.mapper.ProjectMapper">
+
+    <select id="findVisible" resultType="org.mywebsite.backend.model.entity.Project">
+        SELECT id, name, meta, description, url, repo_url, sort_order, visible, created_at, updated_at
+        FROM project
+        WHERE visible = 1
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="findAll" resultType="org.mywebsite.backend.model.entity.Project">
+        SELECT id, name, meta, description, url, repo_url, sort_order, visible, created_at, updated_at
+        FROM project
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="findById" resultType="org.mywebsite.backend.model.entity.Project">
+        SELECT id, name, meta, description, url, repo_url, sort_order, visible, created_at, updated_at
+        FROM project
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO project (name, meta, description, url, repo_url, sort_order, visible)
+        VALUES (#{name}, #{meta}, #{description}, #{url}, #{repoUrl}, #{sortOrder}, #{visible})
+    </insert>
+
+    <update id="update">
+        UPDATE project
+        SET name = #{name},
+            meta = #{meta},
+            description = #{description},
+            url = #{url},
+            repo_url = #{repoUrl},
+            sort_order = #{sortOrder},
+            visible = #{visible}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM project WHERE id = #{id}
+    </delete>
+
+</mapper>

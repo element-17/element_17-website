@@ -15,15 +15,15 @@ interface Props {
  */
 export function ScrollSheet({ articles, loading, error, onRetry, onOpenArticle }: Props) {
   return (
-    <div className="scroll-sheet" data-scroll-sheet aria-label="古卷文章目录">
+    <div className="scroll-sheet" data-scroll-sheet aria-label="随笔目录">
       <header className="scroll-sheet__head">
-        <span className="scroll-sheet__heading">夜灯录 · 随笔目录</span>
+        <span className="scroll-sheet__heading">随笔目录</span>
         <span className="scroll-sheet__seal" aria-hidden="true">
-          藏卷
+          随笔
         </span>
       </header>
 
-      {loading && <p className="scroll-sheet__state">正在研墨展卷…</p>}
+      {loading && <p className="scroll-sheet__state">加载中…</p>}
 
       {!loading && error && (
         <div className="scroll-sheet__state scroll-sheet__state--error" role="alert">
@@ -35,7 +35,7 @@ export function ScrollSheet({ articles, loading, error, onRetry, onOpenArticle }
       )}
 
       {!loading && !error && articles.length === 0 && (
-        <p className="scroll-sheet__state">卷面留白，暂未落墨。</p>
+        <p className="scroll-sheet__state">暂无文章。</p>
       )}
 
       {!loading && !error && articles.length > 0 && (
@@ -51,7 +51,7 @@ export function ScrollSheet({ articles, loading, error, onRetry, onOpenArticle }
                 <span className="scroll-sheet__title">{art.title}</span>
                 <span className="scroll-sheet__meta">
                   <span className="scroll-sheet__tag">{art.tag}</span>
-                  <span className="scroll-sheet__views">{art.viewCount} 阅</span>
+                  <span className="scroll-sheet__views">{art.viewCount} 次阅读</span>
                   <span className="scroll-sheet__date">{formatScrollDate(art.publishedAt)}</span>
                 </span>
               </button>
@@ -61,7 +61,7 @@ export function ScrollSheet({ articles, loading, error, onRetry, onOpenArticle }
       )}
 
       <footer className="scroll-sheet__foot">
-        {articles.length > 0 ? '择一卷目，轻点展阅' : '孤剑夜行 · 藏卷'}
+        {articles.length > 0 ? '点击标题阅读全文' : 'element_17 · 随笔'}
       </footer>
     </div>
   )

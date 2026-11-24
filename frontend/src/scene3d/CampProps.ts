@@ -460,16 +460,17 @@ export class CampProps {
   }
 
   /** 灯笼呼吸式闪烁 + 剑坯余温 + 纸鸢轻摆 + 信鸽转头 */
-  update(time: number) {
+  update(time: number, dawn = 0) {
+    const dim = 1 - dawn * 0.65
     for (const { light, globe, phase, base } of this.lanterns) {
       const f = 0.84 + 0.1 * Math.sin(time * 2.7 + phase) + 0.05 * Math.sin(time * 11.3 + phase * 1.7)
-      light.intensity = base * f
-      globe.material.emissiveIntensity = 1.25 * f + 0.35
+      light.intensity = base * f * dim
+      globe.material.emissiveIntensity = (1.25 * f + 0.35) * dim
     }
     if (this.hotSteelMat) {
       const heat = 0.85 + 0.15 * Math.sin(time * 1.9) + 0.06 * Math.sin(time * 4.7)
-      this.hotSteelMat.emissiveIntensity = 0.72 * heat
-      if (this.forgeGlow) this.forgeGlow.material.opacity = 0.28 * heat
+      this.hotSteelMat.emissiveIntensity = 0.72 * heat * (1 - dawn * 0.35)
+      if (this.forgeGlow) this.forgeGlow.material.opacity = 0.28 * heat * dim
     }
     if (this.kite) {
       this.kite.rotation.z = Math.sin(time * 1.45) * 0.09

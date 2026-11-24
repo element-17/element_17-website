@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { formatScrollDate, type ArticleDetail } from '../../api/client'
+import { renderSafeMarkdown } from '../../utils/safeMarkdown'
 import './ArticleDialog.scss'
 
 interface Props {
@@ -12,11 +13,13 @@ interface Props {
 }
 
 /**
- * 展卷阅读弹窗：使用原生 <dialog>（showModal + closedby="any"）。
- * 文章正文与实时阅读量来自后端 GET /api/v1/articles/{slug}。
+ * 随笔阅读弹窗：使用原生 <dialog>（showModal + closedby="any"）。
+ * 支持安全 Markdown（GFM）解析渲染，正文由独立 ref 容器承载以便使用原生 setHTML()。
  */
 export function ArticleDialog({ open, article, loading, error, onRetry, onClose }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
 
   useEffect(() => {
@@ -28,6 +31,26 @@ export function ArticleDialog({ open, article, loading, error, onRetry, onClose 
       dialog.close()
     }
   }, [open])
+
+  // 每次切换文章回到顶部
+  useEffect(() => {
+    if (article && scrollRef.current) {
+      scrollRef.current.scrollTop = 0
+    }
+  }, [article])
+
+  // 将文章 Markdown 安全渲染到非 VDOM 管理的正文容器
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    if (!article) {
+      el.replaceChildren()
+      return
+    }
+    const ac = new AbortController()
+    void renderSafeMarkdown(el, article.content, ac.signal)
+    return () => ac.abort()
+  }, [article])
 
   // Safari 等尚未支持 closedby="any" 的浏览器：按包围盒判定点击遮罩外关闭
   useEffect(() => {
@@ -58,13 +81,6 @@ export function ArticleDialog({ open, article, loading, error, onRetry, onClose 
     onClose()
   }
 
-  const paragraphs = article
-    ? article.content
-        .split(/\r?\n\s*\r?\n/)
-        .map((p) => p.trim())
-        .filter(Boolean)
-    : []
-
   return (
     <dialog
       ref={dialogRef}
@@ -73,78 +89,76 @@ export function ArticleDialog({ open, article, loading, error, onRetry, onClose 
       onClose={handleClose}
       {...({ closedby: 'any' } as Record<string, string>)}
     >
-      <div className="article-dialog__inner">
-        <header className="article-dialog__header">
-          <div className="article-dialog__meta">
-            {article && (
-              <>
-                <span className="article-dialog__tag">{article.tag}</span>
-                <span className="article-dialog__date">{formatScrollDate(article.publishedAt)}</span>
-                <span className="article-dialog__views">{article.viewCount} 次展阅</span>
-              </>
-            )}
-          </div>
-          <form method="dialog">
-            <button
-              type="submit"
-              value="close"
-              className="article-dialog__close"
-              aria-label="合卷关闭"
-              autoFocus
-            >
-              合卷
-            </button>
-          </form>
-        </header>
+      <header className="article-dialog__header">
+        <div className="article-dialog__meta">
+          {article && (
+            <>
+              <span className="article-dialog__tag">{article.tag}</span>
+              <span className="article-dialog__date">{formatScrollDate(article.publishedAt)}</span>
+              <span className="article-dialog__views">{article.viewCount} 次阅读</span>
+            </>
+          )}
+        </div>
+        <form method="dialog">
+          <button
+            type="submit"
+            value="close"
+            className="article-dialog__close"
+            aria-label="关闭文章"
+            autoFocus
+          >
+            关闭
+          </button>
+        </form>
+      </header>
 
-        {loading && (
-          <div className="article-dialog__state">
-            <h2 id={titleId} className="article-dialog__title">
-              正在展卷…
-            </h2>
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="article-dialog__state" role="alert">
-            <h2 id={titleId} className="article-dialog__title">
-              取卷失败
-            </h2>
-            <p className="article-dialog__error">{error}</p>
-            <button type="button" className="article-dialog__retry" onClick={onRetry}>
-              重新加载
-            </button>
-          </div>
-        )}
-
-        {!loading && !error && article && (
-          <>
-            <h2 id={titleId} className="article-dialog__title">
-              {article.title}
-            </h2>
-            <p className="article-dialog__summary">{article.summary}</p>
-            <div className="article-dialog__rule" aria-hidden="true" />
-
-            <div className="article-dialog__body">
-              {paragraphs.map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
+      <div className="article-dialog__scroll" ref={scrollRef}>
+        <div className="article-dialog__inner">
+          {loading && (
+            <div className="article-dialog__state">
+              <h2 id={titleId} className="article-dialog__title">
+                加载中…
+              </h2>
             </div>
+          )}
 
-            {article.externalUrl && (
-              <footer className="article-dialog__footer">
-                <a
-                  className="article-dialog__link"
-                  href={article.externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  前往原站阅读全文 →
-                </a>
-              </footer>
-            )}
-          </>
-        )}
+          {!loading && error && (
+            <div className="article-dialog__state" role="alert">
+              <h2 id={titleId} className="article-dialog__title">
+                加载失败
+              </h2>
+              <p className="article-dialog__error">{error}</p>
+              <button type="button" className="article-dialog__retry" onClick={onRetry}>
+                重新加载
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && article && (
+            <article className="article-dialog__article">
+              <h2 id={titleId} className="article-dialog__title">
+                {article.title}
+              </h2>
+              {article.summary && <p className="article-dialog__summary">{article.summary}</p>}
+              <div className="article-dialog__rule" aria-hidden="true" />
+
+              <div ref={bodyRef} className="article-dialog__body md-prose" />
+
+              {article.externalUrl && (
+                <footer className="article-dialog__footer">
+                  <a
+                    className="article-dialog__link"
+                    href={article.externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    前往原站阅读全文 →
+                  </a>
+                </footer>
+              )}
+            </article>
+          )}
+        </div>
       </div>
     </dialog>
   )

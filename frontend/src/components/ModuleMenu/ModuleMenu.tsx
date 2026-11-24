@@ -43,7 +43,7 @@ export function ModuleMenu({ active, onSelect }: Props) {
               type="button"
               data-id={m.id}
               className={cn('menu__item', { 'is-active': m.id === active })}
-              aria-label={`第 ${Number(m.index) + 1} 章：${m.label} ${m.en}`}
+              aria-label={`${m.label} ${m.en}`}
               aria-current={m.id === active ? 'page' : undefined}
               onClick={() => onSelect(m.id)}
             >

@@ -74,7 +74,7 @@ export const QUALITY_LABELS: Record<QualityLevel, string> = {
   high: '高',
 }
 
-const STORAGE_KEY = 'loneblade.quality'
+const STORAGE_KEY = 'element17.quality'
 
 export const loadSavedQuality = (): QualityLevel | null => {
   try {

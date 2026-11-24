@@ -11,53 +11,184 @@
   &__brand {
     position: absolute;
     left: 4vw;
-    top: 4.5vh;
+    top: 4vh;
     z-index: 4;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
+    padding: 5px 14px 5px 6px;
+    border: 1px solid var(--surface-border);
+    border-radius: 10px;
+    background: var(--pill-bg);
+    backdrop-filter: blur(10px);
     will-change: transform;
+
+    @media (prefers-color-scheme: dark) {
+      :root:has(> head > meta[name='color-scheme'][content='light dark']) & {
+        padding: 0;
+        border-color: transparent;
+        background: transparent;
+        backdrop-filter: none;
+      }
+    }
+
+    :root:has(> head > meta[name='color-scheme'][content='dark']) & {
+      padding: 0;
+      border-color: transparent;
+      background: transparent;
+      backdrop-filter: none;
+    }
   }
 
-  // 朱红印章
+  // 左上角徽标
   &__seal {
     display: grid;
     place-items: center;
     width: 30px;
     height: 30px;
-    border-radius: 3px;
-    background: $c-accent;
-    color: #fff;
-    font-family: $font-brush;
-    font-size: 19px;
-    line-height: 1;
+    flex: none;
+  }
+
+  &__seal-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 2px 8px rgba(152, 118, 216, 0.28));
   }
 
   &__brand-name {
-    @include tracking-caps(0.45em);
-    font-size: 12px;
-    color: $c-ink;
+    @include tracking-caps(0.36em);
+    font-family: $font-sans;
+    font-size: 0.78125rem;
+    font-weight: 600;
+    color: var(--ink-strong);
+    text-shadow: var(--text-shadow);
   }
 
-  // 右上角一列：操作提示 + 画质开关
+  // 右上角一列：操作提示 + 昼夜/画质控件
   &__side {
     position: absolute;
     right: 4vw;
-    top: 4.5vh;
+    top: 4vh;
     z-index: 4;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 12px;
+    gap: 10px;
     will-change: transform;
   }
 
   &__hint {
-    font-size: 12px;
-    letter-spacing: 0.24em;
-    color: rgba(216, 200, 255, 0.46);
+    font-family: $font-sans;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    color: var(--ink-secondary);
+    padding: 3px 10px;
+    border-radius: 5px;
+    background: var(--pill-bg);
+    backdrop-filter: blur(8px);
+
+    @media (prefers-color-scheme: dark) {
+      :root:has(> head > meta[name='color-scheme'][content='light dark']) & {
+        padding: 0;
+        background: transparent;
+        backdrop-filter: none;
+        color: var(--ink-muted);
+        text-shadow: var(--text-shadow);
+      }
+    }
+
+    :root:has(> head > meta[name='color-scheme'][content='dark']) & {
+      padding: 0;
+      background: transparent;
+      backdrop-filter: none;
+      color: var(--ink-muted);
+      text-shadow: var(--text-shadow);
+    }
 
     @include mobile {
+      display: none;
+    }
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  // 昼夜切换按钮（太阳 / 月亮双态都在 DOM 中，默认跟随系统，点按切换黎明 / 黑夜）
+  &__theme-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-block-size: 30px;
+    padding: 4px 11px;
+    border: 1px solid var(--surface-border);
+    border-radius: 6px;
+    background: var(--pill-bg);
+    backdrop-filter: blur(8px);
+    font-family: $font-sans;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--ink-strong);
+    transition:
+      border-color 0.22s ease,
+      background-color 0.22s ease,
+      transform 0.22s ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--accent-border);
+      background: var(--pill-hover-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+  }
+
+  &__theme-opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  // 按当前生效主题隐藏非活跃选项（无需等待 JS 即可与系统偏好对齐）
+  &__theme-opt--dark {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:has(> head > meta[name='color-scheme'][content='light dark']) & {
+      .home__theme-opt--light {
+        display: none;
+      }
+
+      .home__theme-opt--dark {
+        display: inline-flex;
+      }
+    }
+  }
+
+  :root:has(> head > meta[name='color-scheme'][content='dark']) & {
+    .home__theme-opt--light {
+      display: none;
+    }
+
+    .home__theme-opt--dark {
+      display: inline-flex;
+    }
+  }
+
+  :root:has(> head > meta[name='color-scheme'][content='light']) & {
+    .home__theme-opt--light {
+      display: inline-flex;
+    }
+
+    .home__theme-opt--dark {
       display: none;
     }
   }
@@ -65,91 +196,52 @@
   &__quality {
     display: flex;
     gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--surface-border);
+    border-radius: 6px;
+    background: var(--pill-bg);
+    backdrop-filter: blur(8px);
   }
 
   &__quality-btn {
-    @include tracking-caps(0.18em);
-    padding: 4px 9px;
-    font-size: 11px;
-    color: $c-text-soft;
+    @include tracking-caps(0.12em);
+    padding: 3px 9px;
+    font-family: $font-sans;
+    font-size: 0.71875rem;
+    color: var(--ink-muted);
     border: 1px solid transparent;
-    border-radius: 2px;
+    border-radius: 4px;
     transition:
-      color 0.3s ease,
-      border-color 0.3s ease,
-      background-color 0.3s ease;
+      color 0.22s ease,
+      border-color 0.22s ease,
+      background-color 0.22s ease;
 
     &:hover {
-      color: $c-ink;
+      color: var(--ink-strong);
     }
 
     &:focus-visible {
-      outline: 1px solid rgba(206, 184, 255, 0.58);
+      outline: 2px solid var(--focus-ring);
       outline-offset: 2px;
     }
 
     &.is-active {
-      color: #fff;
-      border-color: $c-line;
-      background: rgba(152, 118, 216, 0.14);
+      color: var(--ink-strong);
+      border-color: var(--surface-border);
+      background: var(--pill-hover-bg);
+      font-weight: 600;
     }
   }
 
-  // 底部压暗，保证菜单可读
+  // 底部柔暗/柔雾渐变，衬托底部导航
   &__shade {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    height: 26vh;
+    height: 22vh;
     z-index: 1;
-    background: linear-gradient(180deg, transparent, rgba(5, 3, 12, 0.8));
+    background: linear-gradient(180deg, transparent, var(--shade-top));
     pointer-events: none;
-  }
-
-  // WebGL 首帧前的加载提示：极简的「入夜」，就绪后淡出
-  &__boot {
-    @include fill;
-    z-index: 20;
-    display: grid;
-    place-items: center;
-    background: $c-night-0;
-    pointer-events: none;
-    transition:
-      opacity 0.9s ease 0.15s,
-      visibility 0s linear 1.1s;
-
-    @media (prefers-reduced-motion: reduce) {
-      transition:
-        opacity 0.25s ease,
-        visibility 0s linear 0.26s;
-    }
-
-    &.is-done {
-      opacity: 0;
-      visibility: hidden;
-    }
-  }
-
-  &__boot-text {
-    font-family: $font-brush;
-    font-size: clamp(34px, 5.4vw, 54px);
-    letter-spacing: 0.6em;
-    text-indent: 0.6em;
-    color: rgba(232, 222, 255, 0.85);
-
-    @media (prefers-reduced-motion: no-preference) {
-      animation: boot-breath 2.4s ease-in-out infinite;
-    }
-  }
-}
-
-@keyframes boot-breath {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.95;
   }
 }

@@ -149,6 +149,7 @@ const fragmentShader = /* glsl */ `
   uniform float uFogDensity;
   uniform float uUseReflector;
   uniform float uLite;
+  uniform float uDawn;
   varying vec4 vUv;
   varying vec3 vWorld;
   ${NOISE_GLSL}
@@ -168,24 +169,32 @@ const fragmentShader = /* glsl */ `
     return h;
   }
 
-  // 低画质程序化倒影：不跑二次场景渲染，直接按反射方向合成深紫暮色水影、残霞、月晕与对岸暖灯碎影
+  // 低画质程序化倒影：不跑二次场景渲染，直接按反射方向合成黑夜暮色 / 黎明晨光水影
   vec3 analyticReflection(vec3 R, vec2 grad, vec3 moonDir) {
     float h = max(R.y, 0.0);
-    // 贴近真实平面反射的深紫夜水色阶，避免偏白发灰
-    vec3 sky = mix(vec3(0.085, 0.048, 0.155), vec3(0.042, 0.025, 0.105), smoothstep(0.0, 0.22, h));
-    sky = mix(sky, vec3(0.015, 0.011, 0.045), smoothstep(0.18, 0.65, h));
+    // 贴近真实平面反射的深紫夜水色阶
+    vec3 nightSky = mix(vec3(0.085, 0.048, 0.155), vec3(0.042, 0.025, 0.105), smoothstep(0.0, 0.22, h));
+    nightSky = mix(nightSky, vec3(0.015, 0.011, 0.045), smoothstep(0.18, 0.65, h));
     float az = max(dot(normalize(R.xz + 1e-5), uSunDir), 0.0);
-    sky += vec3(0.65, 0.22, 0.34) * pow(az, 3.0) * exp(-h * 7.5) * 0.42;
-    sky += vec3(0.95, 0.50, 0.28) * pow(az, 10.0) * exp(-h * 15.0) * 0.35;
+    nightSky += vec3(0.65, 0.22, 0.34) * pow(az, 3.0) * exp(-h * 7.5) * 0.42;
+    nightSky += vec3(0.95, 0.50, 0.28) * pow(az, 10.0) * exp(-h * 15.0) * 0.35;
     float mh = max(dot(R, moonDir), 0.0);
-    sky += vec3(0.36, 0.32, 0.70) * (pow(mh, 44.0) * 0.42 + pow(mh, 10.0) * 0.07);
+    nightSky += vec3(0.36, 0.32, 0.70) * (pow(mh, 44.0) * 0.42 + pow(mh, 10.0) * 0.07);
+
+    // 白天晴空水面反射：清澈天蓝水影 + 柔和碎金波光
+    vec3 dawnSky = mix(vec3(0.68, 0.84, 0.96), vec3(0.28, 0.56, 0.88), smoothstep(0.0, 0.28, h));
+    dawnSky = mix(dawnSky, vec3(0.14, 0.38, 0.76), smoothstep(0.24, 0.72, h));
+    dawnSky += vec3(1.0, 0.94, 0.76) * (pow(mh, 52.0) * 0.34 + pow(mh, 12.0) * 0.08);
+
+    vec3 sky = mix(nightSky, dawnSky, uDawn);
+
     // 远山与对岸剪影压暗贴近水面的反射带
     float ridge = smoothstep(0.012, 0.095, h + 0.02 * sin(vWorld.x * 0.11));
-    sky *= mix(0.34, 1.0, ridge);
+    sky *= mix(mix(0.34, 0.68, uDawn), 1.0, ridge);
     // 波纹横切出的明暗水带
     float band = 0.72 + 0.28 * sin(vWorld.z * 2.4 + grad.y * 2.2 - uTime * 1.1);
     sky *= band;
-    // 船头灯与对岸窗灯/篝火拖出的细碎暖影
+    // 船头灯与对岸窗灯/篝火拖出的细碎暖影（黎明柔和淡化）
     float px = vWorld.x + grad.x * 0.35;
     float shimmer = pow(0.5 + 0.5 * sin(vWorld.z * 4.2 + grad.y * 4.5 - uTime * 2.4), 2.0);
     float lights =
@@ -194,7 +203,7 @@ const fragmentShader = /* glsl */ `
       exp(-pow((px - 1.5) * 0.6, 2.0)) * 0.7 +
       exp(-pow((px - 10.0) * 0.48, 2.0)) * 0.95 +
       exp(-pow((px - 22.0) * 0.55, 2.0)) * 0.55;
-    sky += vec3(1.0, 0.62, 0.26) * lights * shimmer * 0.62;
+    sky += vec3(1.0, 0.62, 0.26) * lights * shimmer * mix(0.62, 0.12, uDawn);
     return sky;
   }
 
@@ -284,6 +293,16 @@ export class River {
   private frame = 0
   private forceNext = true
   private lastCamPos = new THREE.Vector3(Infinity, Infinity, Infinity)
+  private lastDawn = -1
+  private nightDeep = new THREE.Color(0x0a0818)
+  private dawnDeep = new THREE.Color(0x2864a4)
+  private nightShallow = new THREE.Color(0x231c3a)
+  private dawnShallow = new THREE.Color(0x529ac2)
+  private nightFoam = new THREE.Color(0x8f84b8)
+  private dawnFoam = new THREE.Color(0xf2f7fc)
+  private nightSparkle = new THREE.Color(0xd9d2ff)
+  private dawnSparkle = new THREE.Color(0xfff0c4)
+  private nightMoonPos: THREE.Vector3
 
   constructor(
     moonPos: THREE.Vector3,
@@ -291,6 +310,7 @@ export class River {
     fogColor: THREE.ColorRepresentation,
     fogDensity: number,
   ) {
+    this.nightMoonPos = moonPos.clone()
     this.mesh = new Reflector(new THREE.PlaneGeometry(1300, 1300), {
       // Reflector 的 color 在这里当作深水的底色
       color: 0x0a0818,
@@ -314,6 +334,7 @@ export class River {
           uFogDensity: { value: fogDensity },
           uUseReflector: { value: 1 },
           uLite: { value: 0 },
+          uDawn: { value: 0 },
         },
         vertexShader,
         fragmentShader,
@@ -357,6 +378,22 @@ export class River {
     const h = this.useReflector ? Math.max(1, Math.round(height)) : 4
     this.mesh.getRenderTarget().setSize(w, h)
     this.forceNext = true
+  }
+
+  setDawn(dawn: number, dawnSunPos: THREE.Vector3, fogColor: THREE.Color, fogDensity: number) {
+    if (Math.abs(dawn - this.lastDawn) > 1e-4) {
+      this.lastDawn = dawn
+      this.forceNext = true
+    }
+    const u = this.material.uniforms
+    u.uDawn.value = dawn
+    ;(u.color.value as THREE.Color).copy(this.nightDeep).lerp(this.dawnDeep, dawn)
+    ;(u.uShallow.value as THREE.Color).copy(this.nightShallow).lerp(this.dawnShallow, dawn)
+    ;(u.uFoam.value as THREE.Color).copy(this.nightFoam).lerp(this.dawnFoam, dawn)
+    ;(u.uMoonColor.value as THREE.Color).copy(this.nightSparkle).lerp(this.dawnSparkle, dawn)
+    ;(u.uMoonPos.value as THREE.Vector3).copy(this.nightMoonPos).lerp(dawnSunPos, dawn)
+    ;(u.uFogColor.value as THREE.Color).copy(fogColor)
+    u.uFogDensity.value = fogDensity
   }
 
   update(time: number) {

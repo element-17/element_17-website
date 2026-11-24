@@ -1,5 +1,288 @@
 @use 'variables' as *;
 
+:root {
+  color-scheme: light dark;
+
+  &:has(> head > meta[name='color-scheme'][content='dark']) {
+    color-scheme: dark;
+  }
+
+  &:has(> head > meta[name='color-scheme'][content='light']) {
+    color-scheme: light;
+  }
+
+  // Raw light (晴空白天) & dark (黑夜) tokens
+  --bg-canvas-light: #7fb4e6;
+  --bg-canvas-dark: #05040f;
+
+  --ink-strong-light: #1a1528;
+  --ink-strong-dark: #ffffff;
+  --ink-primary-light: #251e38;
+  --ink-primary-dark: #eee8ff;
+  --ink-body-light: #312945;
+  --ink-body-dark: rgba(238, 232, 255, 0.9);
+  --ink-secondary-light: #514669;
+  --ink-secondary-dark: rgba(232, 224, 255, 0.78);
+  --ink-muted-light: #64587d;
+  --ink-muted-dark: rgba(226, 216, 255, 0.64);
+
+  --surface-border-light: rgba(68, 52, 98, 0.22);
+  --surface-border-dark: rgba(206, 184, 255, 0.24);
+  --surface-divider-light: rgba(68, 52, 98, 0.14);
+  --surface-divider-dark: rgba(206, 184, 255, 0.16);
+
+  --panel-bg-light: rgba(255, 249, 243, 0.72);
+  --panel-bg-dark: rgba(12, 8, 26, 0.42);
+  --panel-border-light: rgba(112, 82, 130, 0.22);
+  --panel-border-dark: rgba(206, 184, 255, 0.16);
+  --panel-shadow-light: 0 18px 46px rgba(42, 26, 56, 0.14);
+  --panel-shadow-dark: 0 18px 48px rgba(4, 2, 12, 0.46);
+
+  --pill-bg-light: rgba(255, 249, 243, 0.66);
+  --pill-bg-dark: rgba(15, 10, 28, 0.45);
+  --pill-hover-bg-light: rgba(255, 243, 232, 0.9);
+  --pill-hover-bg-dark: rgba(152, 118, 216, 0.18);
+
+  --accent-solid-light: #b82b37;
+  --accent-solid-dark: #c9353f;
+  --accent-border-light: rgba(184, 43, 55, 0.45);
+  --accent-border-dark: rgba(201, 53, 63, 0.65);
+  --accent-tint-light: rgba(184, 43, 55, 0.1);
+  --accent-tint-dark: rgba(201, 53, 63, 0.18);
+  --accent-tint-hover-light: rgba(184, 43, 55, 0.18);
+  --accent-tint-hover-dark: rgba(201, 53, 63, 0.34);
+  --accent-text-light: #9e202c;
+  --accent-text-dark: #f4b8bc;
+
+  --link-color-light: #8d293e;
+  --link-color-dark: #f0c99a;
+  --link-underline-light: rgba(141, 41, 62, 0.38);
+  --link-underline-dark: rgba(240, 201, 154, 0.42);
+  --focus-ring-light: rgba(184, 43, 55, 0.72);
+  --focus-ring-dark: rgba(235, 198, 140, 0.8);
+
+  --dialog-bg-light: #fcf8f3;
+  --dialog-bg-dark: #151021;
+  --dialog-header-bg-light: rgba(252, 248, 243, 0.88);
+  --dialog-header-bg-dark: rgba(21, 16, 33, 0.88);
+  --dialog-backdrop-light: rgba(34, 24, 48, 0.42);
+  --dialog-backdrop-dark: rgba(5, 4, 15, 0.76);
+  --dialog-shadow-light: 0 28px 80px rgba(38, 24, 52, 0.24);
+  --dialog-shadow-dark: 0 28px 80px rgba(0, 0, 0, 0.76);
+
+  --input-bg-light: rgba(255, 255, 255, 0.85);
+  --input-bg-dark: rgba(10, 7, 20, 0.68);
+  --quote-bg-light: rgba(184, 43, 55, 0.055);
+  --quote-bg-dark: rgba(206, 184, 255, 0.06);
+  --code-inline-bg-light: rgba(68, 52, 98, 0.09);
+  --code-inline-bg-dark: rgba(206, 184, 255, 0.12);
+  --code-inline-fg-light: #7c2238;
+  --code-inline-fg-dark: #f3d2a4;
+  --code-block-bg-light: #1e192b;
+  --code-block-bg-dark: #0d0a16;
+  --code-block-fg-light: #ece6ff;
+  --code-block-fg-dark: #eae4ff;
+  --code-border-light: rgba(68, 52, 98, 0.16);
+  --code-border-dark: rgba(206, 184, 255, 0.16);
+  --table-head-bg-light: rgba(68, 52, 98, 0.06);
+  --table-head-bg-dark: rgba(206, 184, 255, 0.07);
+
+  --status-ok-light: #1f6f3f;
+  --status-ok-dark: #b7efc5;
+  --status-err-light: #b4232d;
+  --status-err-dark: #f5adb2;
+
+  --scrollbar-track-light: #f1e9e0;
+  --scrollbar-track-dark: #140f20;
+  --scrollbar-thumb-light: #b6a69a;
+  --scrollbar-thumb-dark: #4f426e;
+
+  --hero-shadow-light: 0 2px 24px rgba(255, 246, 236, 0.75);
+  --hero-shadow-dark: 0 0 40px rgba(176, 146, 255, 0.38);
+  --text-shadow-light: 0 1px 12px rgba(255, 247, 238, 0.72);
+  --text-shadow-dark: 0 2px 14px rgba(5, 4, 15, 0.78);
+  --shade-top-light: rgba(235, 245, 255, 0.56);
+  --shade-top-dark: rgba(5, 3, 12, 0.8);
+  --menu-bg-light: rgba(250, 252, 255, 0.76);
+  --menu-bg-dark: rgba(10, 7, 22, 0.36);
+
+  // Fallback defaults (light) for browsers without light-dark()
+  --bg-canvas: var(--bg-canvas-light);
+  --ink-strong: var(--ink-strong-light);
+  --ink-primary: var(--ink-primary-light);
+  --ink-body: var(--ink-body-light);
+  --ink-secondary: var(--ink-secondary-light);
+  --ink-muted: var(--ink-muted-light);
+  --surface-border: var(--surface-border-light);
+  --surface-divider: var(--surface-divider-light);
+  --panel-bg: var(--panel-bg-light);
+  --panel-border: var(--panel-border-light);
+  --panel-shadow: var(--panel-shadow-light);
+  --pill-bg: var(--pill-bg-light);
+  --pill-hover-bg: var(--pill-hover-bg-light);
+  --accent-solid: var(--accent-solid-light);
+  --accent-border: var(--accent-border-light);
+  --accent-tint: var(--accent-tint-light);
+  --accent-tint-hover: var(--accent-tint-hover-light);
+  --accent-text: var(--accent-text-light);
+  --link-color: var(--link-color-light);
+  --link-underline: var(--link-underline-light);
+  --focus-ring: var(--focus-ring-light);
+  --dialog-bg: var(--dialog-bg-light);
+  --dialog-header-bg: var(--dialog-header-bg-light);
+  --dialog-backdrop: var(--dialog-backdrop-light);
+  --dialog-shadow: var(--dialog-shadow-light);
+  --input-bg: var(--input-bg-light);
+  --quote-bg: var(--quote-bg-light);
+  --code-inline-bg: var(--code-inline-bg-light);
+  --code-inline-fg: var(--code-inline-fg-light);
+  --code-block-bg: var(--code-block-bg-light);
+  --code-block-fg: var(--code-block-fg-light);
+  --code-border: var(--code-border-light);
+  --table-head-bg: var(--table-head-bg-light);
+  --status-ok: var(--status-ok-light);
+  --status-err: var(--status-err-light);
+  --scrollbar-track: var(--scrollbar-track-light);
+  --scrollbar-thumb: var(--scrollbar-thumb-light);
+  --hero-shadow: var(--hero-shadow-light);
+  --text-shadow: var(--text-shadow-light);
+  --shade-top: var(--shade-top-light);
+  --menu-bg: var(--menu-bg-light);
+
+  @media (prefers-color-scheme: dark) {
+    --bg-canvas: var(--bg-canvas-dark);
+    --ink-strong: var(--ink-strong-dark);
+    --ink-primary: var(--ink-primary-dark);
+    --ink-body: var(--ink-body-dark);
+    --ink-secondary: var(--ink-secondary-dark);
+    --ink-muted: var(--ink-muted-dark);
+    --surface-border: var(--surface-border-dark);
+    --surface-divider: var(--surface-divider-dark);
+    --panel-bg: var(--panel-bg-dark);
+    --panel-border: var(--panel-border-dark);
+    --panel-shadow: var(--panel-shadow-dark);
+    --pill-bg: var(--pill-bg-dark);
+    --pill-hover-bg: var(--pill-hover-bg-dark);
+    --accent-solid: var(--accent-solid-dark);
+    --accent-border: var(--accent-border-dark);
+    --accent-tint: var(--accent-tint-dark);
+    --accent-tint-hover: var(--accent-tint-hover-dark);
+    --accent-text: var(--accent-text-dark);
+    --link-color: var(--link-color-dark);
+    --link-underline: var(--link-underline-dark);
+    --focus-ring: var(--focus-ring-dark);
+    --dialog-bg: var(--dialog-bg-dark);
+    --dialog-header-bg: var(--dialog-header-bg-dark);
+    --dialog-backdrop: var(--dialog-backdrop-dark);
+    --dialog-shadow: var(--dialog-shadow-dark);
+    --input-bg: var(--input-bg-dark);
+    --quote-bg: var(--quote-bg-dark);
+    --code-inline-bg: var(--code-inline-bg-dark);
+    --code-inline-fg: var(--code-inline-fg-dark);
+    --code-block-bg: var(--code-block-bg-dark);
+    --code-block-fg: var(--code-block-fg-dark);
+    --code-border: var(--code-border-dark);
+    --table-head-bg: var(--table-head-bg-dark);
+    --status-ok: var(--status-ok-dark);
+    --status-err: var(--status-err-dark);
+    --scrollbar-track: var(--scrollbar-track-dark);
+    --scrollbar-thumb: var(--scrollbar-thumb-dark);
+    --hero-shadow: var(--hero-shadow-dark);
+    --text-shadow: var(--text-shadow-dark);
+    --shade-top: var(--shade-top-dark);
+    --menu-bg: var(--menu-bg-dark);
+  }
+
+  @supports (color: light-dark(white, black)) {
+    --bg-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+    --ink-strong: light-dark(var(--ink-strong-light), var(--ink-strong-dark));
+    --ink-primary: light-dark(var(--ink-primary-light), var(--ink-primary-dark));
+    --ink-body: light-dark(var(--ink-body-light), var(--ink-body-dark));
+    --ink-secondary: light-dark(var(--ink-secondary-light), var(--ink-secondary-dark));
+    --ink-muted: light-dark(var(--ink-muted-light), var(--ink-muted-dark));
+    --surface-border: light-dark(var(--surface-border-light), var(--surface-border-dark));
+    --surface-divider: light-dark(var(--surface-divider-light), var(--surface-divider-dark));
+    --panel-bg: light-dark(var(--panel-bg-light), var(--panel-bg-dark));
+    --panel-border: light-dark(var(--panel-border-light), var(--panel-border-dark));
+    --panel-shadow: var(--panel-shadow-light);
+    --pill-bg: light-dark(var(--pill-bg-light), var(--pill-bg-dark));
+    --pill-hover-bg: light-dark(var(--pill-hover-bg-light), var(--pill-hover-bg-dark));
+    --accent-solid: light-dark(var(--accent-solid-light), var(--accent-solid-dark));
+    --accent-border: light-dark(var(--accent-border-light), var(--accent-border-dark));
+    --accent-tint: light-dark(var(--accent-tint-light), var(--accent-tint-dark));
+    --accent-tint-hover: light-dark(var(--accent-tint-hover-light), var(--accent-tint-hover-dark));
+    --accent-text: light-dark(var(--accent-text-light), var(--accent-text-dark));
+    --link-color: light-dark(var(--link-color-light), var(--link-color-dark));
+    --link-underline: light-dark(var(--link-underline-light), var(--link-underline-dark));
+    --focus-ring: light-dark(var(--focus-ring-light), var(--focus-ring-dark));
+    --dialog-bg: light-dark(var(--dialog-bg-light), var(--dialog-bg-dark));
+    --dialog-header-bg: light-dark(var(--dialog-header-bg-light), var(--dialog-header-bg-dark));
+    --dialog-backdrop: light-dark(var(--dialog-backdrop-light), var(--dialog-backdrop-dark));
+    --input-bg: light-dark(var(--input-bg-light), var(--input-bg-dark));
+    --quote-bg: light-dark(var(--quote-bg-light), var(--quote-bg-dark));
+    --code-inline-bg: light-dark(var(--code-inline-bg-light), var(--code-inline-bg-dark));
+    --code-inline-fg: light-dark(var(--code-inline-fg-light), var(--code-inline-fg-dark));
+    --code-block-bg: light-dark(var(--code-block-bg-light), var(--code-block-bg-dark));
+    --code-block-fg: light-dark(var(--code-block-fg-light), var(--code-block-fg-dark));
+    --code-border: light-dark(var(--code-border-light), var(--code-border-dark));
+    --table-head-bg: light-dark(var(--table-head-bg-light), var(--table-head-bg-dark));
+    --status-ok: light-dark(var(--status-ok-light), var(--status-ok-dark));
+    --status-err: light-dark(var(--status-err-light), var(--status-err-dark));
+    --scrollbar-track: light-dark(var(--scrollbar-track-light), var(--scrollbar-track-dark));
+    --scrollbar-thumb: light-dark(var(--scrollbar-thumb-light), var(--scrollbar-thumb-dark));
+    --shade-top: light-dark(var(--shade-top-light), var(--shade-top-dark));
+    --menu-bg: light-dark(var(--menu-bg-light), var(--menu-bg-dark));
+  }
+
+  // 非颜色类属性（box-shadow / text-shadow）随有效主题切换
+  &:has(> head > meta[name='color-scheme'][content='dark']) {
+    --panel-shadow: var(--panel-shadow-dark);
+    --dialog-shadow: var(--dialog-shadow-dark);
+    --hero-shadow: var(--hero-shadow-dark);
+    --text-shadow: var(--text-shadow-dark);
+  }
+
+  &:has(> head > meta[name='color-scheme'][content='light']) {
+    --panel-shadow: var(--panel-shadow-light);
+    --dialog-shadow: var(--dialog-shadow-light);
+    --hero-shadow: var(--hero-shadow-light);
+    --text-shadow: var(--text-shadow-light);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:has(> head > meta[name='color-scheme'][content='light dark']) {
+      --panel-shadow: var(--panel-shadow-dark);
+      --dialog-shadow: var(--dialog-shadow-dark);
+      --hero-shadow: var(--hero-shadow-dark);
+      --text-shadow: var(--text-shadow-dark);
+    }
+  }
+
+  accent-color: var(--accent-solid);
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+@supports not (scrollbar-color: auto) {
+  .article-dialog__scroll,
+  .msg-dialog__inner {
+    scrollbar-width: auto;
+
+    &::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 5px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: var(--scrollbar-track);
+    }
+  }
+}
+
 *,
 *::before,
 *::after {
@@ -15,9 +298,11 @@ body,
 
 body {
   overflow: hidden;
-  background: $c-night-0;
-  color: $c-ink;
-  font-family: $font-serif;
+  background: var(--bg-canvas);
+  color: var(--ink-primary);
+  font-family: $font-sans;
+  line-height: 1.5;
+  text-align: start;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -41,4 +326,16 @@ ul {
 
 ul {
   list-style: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
