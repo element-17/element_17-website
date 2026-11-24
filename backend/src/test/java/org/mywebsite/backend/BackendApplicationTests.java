@@ -2,6 +2,9 @@ package org.mywebsite.backend;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mywebsite.backend.config.ProjectRepoSyncInitializer;
+import org.mywebsite.backend.mapper.ProjectMapper;
+import org.mywebsite.backend.model.entity.Project;
 import org.mywebsite.backend.service.ArticleService;
 import org.mywebsite.backend.service.RedisCacheService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +54,12 @@ class BackendApplicationTests {
     @Autowired
     private InMemoryRedisCacheService fakeRedis;
 
+    @Autowired
+    private ProjectMapper projectMapper;
+
+    @Autowired
+    private ProjectRepoSyncInitializer projectRepoSyncInitializer;
+
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -71,7 +80,8 @@ class BackendApplicationTests {
         mockMvc.perform(get("/api/v1/projects"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[0].name").value("my-website"))
+                .andExpect(jsonPath("$.data[0].name").value("element_17-website"))
+                .andExpect(jsonPath("$.data[0].repoUrl").value("https://github.com/element-17/element_17-website"))
                 .andExpect(jsonPath("$.data[1].name").value("Sight"));
 
         // 公开列表不应暴露草稿
@@ -294,6 +304,43 @@ class BackendApplicationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openapi").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/articles']").exists());
+    }
+
+    @Test
+    void projectRepoSyncInitializerUpdatesLegacyRepoAndClearsCache() throws Exception {
+        Project legacy = new Project();
+        legacy.setName("my-website");
+        legacy.setMeta("GitHub");
+        legacy.setDescription("");
+        legacy.setRepoUrl("https://github.com/element-17/my-website");
+        legacy.setSortOrder(99);
+        legacy.setVisible(true);
+        projectMapper.insert(legacy);
+        fakeRedis.delete(RedisCacheService.KEY_PROJECTS_PUBLIC);
+
+        try {
+            // 先通过公开接口预热旧数据缓存
+            mockMvc.perform(get("/api/v1/projects"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[*].name", hasItem("my-website")));
+
+            // 执行幂等同步：应更新 1 条记录并失效缓存
+            int updated = projectRepoSyncInitializer.syncRenamedRepos();
+            org.junit.jupiter.api.Assertions.assertEquals(1, updated);
+
+            mockMvc.perform(get("/api/v1/projects"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[*].name", not(hasItem("my-website"))))
+                    .andExpect(jsonPath("$.data[?(@.id == " + legacy.getId() + ")].name", contains("element_17-website")))
+                    .andExpect(jsonPath("$.data[?(@.id == " + legacy.getId() + ")].repoUrl",
+                            contains("https://github.com/element-17/element_17-website")));
+
+            // 再次执行应幂等无变化
+            org.junit.jupiter.api.Assertions.assertEquals(0, projectRepoSyncInitializer.syncRenamedRepos());
+        } finally {
+            projectMapper.deleteById(legacy.getId());
+            fakeRedis.delete(RedisCacheService.KEY_PROJECTS_PUBLIC);
+        }
     }
 
     @TestConfiguration

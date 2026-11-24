@@ -19,7 +19,7 @@
 
 ## 仓库分支约定
 
-仓库地址：`https://github.com/element-17/my-website.git`
+仓库地址：`https://github.com/element-17/element_17-website.git`
 
 - `main`：主干分支
 - `frontend`：前端独立开发分支（`frontend/`）

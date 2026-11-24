@@ -19,7 +19,7 @@ INSERT INTO article (slug, title, tag, summary, content, status, pinned, view_co
 ('draft-only-note', '未公开草稿', '随笔', '草稿摘要', '草稿正文', 'DRAFT', 0, 0, NULL);
 
 INSERT INTO project (name, meta, description, repo_url, sort_order, visible) VALUES
-('my-website', 'GitHub', '', 'https://github.com/element-17/my-website', 1, 1),
+('element_17-website', 'GitHub', '', 'https://github.com/element-17/element_17-website', 1, 1),
 ('Sight', 'GitHub', '', 'https://github.com/element-17/Sight', 2, 1),
 ('内部实验项目', 'Internal', '隐藏项目', NULL, 3, 0);
 

@@ -222,7 +222,7 @@
       "meta": "Three.js / React",
       "description": "暮色河畔的一方营地，低开销 WebGL 场景与古卷投影交互。",
       "url": null,
-      "repoUrl": "https://github.com/element-17/my-website",
+      "repoUrl": "https://github.com/element-17/element_17-website",
       "sortOrder": 1
     }
   ],
@@ -369,7 +369,7 @@
   "meta": "Three.js / React",
   "description": "暮色河畔的一方营地，低开销 WebGL 场景与古卷投影交互。",
   "url": "https://example.com",
-  "repoUrl": "https://github.com/element-17/my-website",
+  "repoUrl": "https://github.com/element-17/element_17-website",
   "sortOrder": 1,
   "visible": true
 }

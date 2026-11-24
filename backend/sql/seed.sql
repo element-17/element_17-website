@@ -24,7 +24,7 @@ INSERT IGNORE INTO article (id, slug, title, tag, summary, content, external_url
  NULL, 'PUBLISHED', 1, 1, '2026-11-22 20:30:00');
 
 INSERT IGNORE INTO project (id, name, meta, description, url, repo_url, sort_order, visible) VALUES
-(1, 'my-website', 'GitHub', '', NULL, 'https://github.com/element-17/my-website', 1, 1),
+(1, 'element_17-website', 'GitHub', '', NULL, 'https://github.com/element-17/element_17-website', 1, 1),
 (2, 'Sight', 'GitHub', '', NULL, 'https://github.com/element-17/Sight', 2, 1);
 
 INSERT IGNORE INTO skill_tag (id, name, sort_order) VALUES
