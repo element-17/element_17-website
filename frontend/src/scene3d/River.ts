@@ -181,10 +181,10 @@ const fragmentShader = /* glsl */ `
     float mh = max(dot(R, moonDir), 0.0);
     nightSky += vec3(0.36, 0.32, 0.70) * (pow(mh, 44.0) * 0.42 + pow(mh, 10.0) * 0.07);
 
-    // 白天晴空水面反射：清澈天蓝水影 + 柔和碎金波光
-    vec3 dawnSky = mix(vec3(0.68, 0.84, 0.96), vec3(0.28, 0.56, 0.88), smoothstep(0.0, 0.28, h));
-    dawnSky = mix(dawnSky, vec3(0.14, 0.38, 0.76), smoothstep(0.24, 0.72, h));
-    dawnSky += vec3(1.0, 0.94, 0.76) * (pow(mh, 52.0) * 0.34 + pow(mh, 12.0) * 0.08);
+    // 黎明晨光水面反射：暖杏霞光映水 + 淡蓝紫天影
+    vec3 dawnSky = mix(vec3(0.84, 0.68, 0.58), vec3(0.50, 0.62, 0.78), smoothstep(0.0, 0.26, h));
+    dawnSky = mix(dawnSky, vec3(0.26, 0.44, 0.66), smoothstep(0.22, 0.7, h));
+    dawnSky += vec3(0.96, 0.80, 0.54) * (pow(mh, 38.0) * 0.44 + pow(mh, 9.0) * 0.14);
 
     vec3 sky = mix(nightSky, dawnSky, uDawn);
 
@@ -295,13 +295,13 @@ export class River {
   private lastCamPos = new THREE.Vector3(Infinity, Infinity, Infinity)
   private lastDawn = -1
   private nightDeep = new THREE.Color(0x0a0818)
-  private dawnDeep = new THREE.Color(0x2864a4)
+  private dawnDeep = new THREE.Color(0x324e70)
   private nightShallow = new THREE.Color(0x231c3a)
-  private dawnShallow = new THREE.Color(0x529ac2)
+  private dawnShallow = new THREE.Color(0x597691)
   private nightFoam = new THREE.Color(0x8f84b8)
-  private dawnFoam = new THREE.Color(0xf2f7fc)
+  private dawnFoam = new THREE.Color(0xede0d6)
   private nightSparkle = new THREE.Color(0xd9d2ff)
-  private dawnSparkle = new THREE.Color(0xfff0c4)
+  private dawnSparkle = new THREE.Color(0xffdfa8)
   private nightMoonPos: THREE.Vector3
 
   constructor(

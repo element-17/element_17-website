@@ -68,7 +68,7 @@ export class World {
   private dawnAnim: { from: number; to: number; start: number; duration: number } | null = null
   private reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   private nightBg = new THREE.Color(0x05040f)
-  private dawnBg = new THREE.Color(0x5d98d8)
+  private dawnBg = new THREE.Color(0x728bb8)
   private nightFog = new THREE.Color(FOG_COLOR)
   private dawnFog = new THREE.Color(DAWN_FOG_COLOR)
   private curFogColor = new THREE.Color(FOG_COLOR)
@@ -274,8 +274,8 @@ export class World {
     this.fog.density = fogDensity
     this.keyLight.color.copy(this.keyNightColor).lerp(this.keyDawnColor, dawn)
     if (this.bloomPass) {
-      this.bloomPass.strength = THREE.MathUtils.lerp(0.42, 0.05, dawn)
-      this.bloomPass.threshold = THREE.MathUtils.lerp(0.82, 1.05, dawn)
+      this.bloomPass.strength = THREE.MathUtils.lerp(0.42, 0.14, dawn)
+      this.bloomPass.threshold = THREE.MathUtils.lerp(0.82, 0.96, dawn)
     }
     this.sky.setDawn(dawn)
     this.env.setDawn(dawn, this.curFogColor, fogDensity)
@@ -289,9 +289,9 @@ export class World {
     composer.addPass(new RenderPass(this.scene, this.camera))
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(1, 1),
-      THREE.MathUtils.lerp(0.42, 0.05, this.dawn),
+      THREE.MathUtils.lerp(0.42, 0.14, this.dawn),
       0.75,
-      THREE.MathUtils.lerp(0.82, 1.05, this.dawn),
+      THREE.MathUtils.lerp(0.82, 0.96, this.dawn),
     )
     this.bloomPass = bloom
     composer.addPass(bloom)
@@ -382,7 +382,7 @@ export class World {
     const hit = this.pickTarget(e.clientX, e.clientY)
     this.canvas.style.cursor = hit ? 'pointer' : ''
     this.canvas.title =
-      hit?.kind === 'celestial' ? (this.dawn < 0.5 ? '点击月亮切换至白天场景' : '点击太阳切换至黑夜场景') : ''
+      hit?.kind === 'celestial' ? (this.dawn < 0.5 ? '点击月亮切换至黎明场景' : '点击朝阳切换至黑夜场景') : ''
   }
 
   private tick = (time: number, deltaMs: number) => {
@@ -416,13 +416,13 @@ export class World {
     this.keyLight.position.set(mouse.x * 1.8, 0.9 - mouse.y * 1.0, -0.6)
     this.sky.update(time)
     this.env.update(time, dt)
-    this.fire.update(time, state.fire * (1 - this.dawn * 0.72))
+    this.fire.update(time, state.fire * (1 - this.dawn * 0.52))
     this.village.update(time, this.dawn)
     this.props.update(time, this.dawn)
     this.boat.update(time, this.dawn)
     this.hero.update(time, dt, mouse.x * 0.12)
 
-    this.renderer.toneMappingExposure = state.exposure * THREE.MathUtils.lerp(1, 1.0, this.dawn)
+    this.renderer.toneMappingExposure = state.exposure * THREE.MathUtils.lerp(1, 0.96, this.dawn)
     if (this.preset.bloom) this.ensureComposer().render()
     else this.renderer.render(this.scene, this.camera)
 

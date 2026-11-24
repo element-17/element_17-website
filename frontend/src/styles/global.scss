@@ -11,8 +11,8 @@
     color-scheme: light;
   }
 
-  // Raw light (晴空白天) & dark (黑夜) tokens
-  --bg-canvas-light: #7fb4e6;
+  // Raw light (黎明) & dark (黑夜) tokens
+  --bg-canvas-light: #e8c4b0;
   --bg-canvas-dark: #05040f;
 
   --ink-strong-light: #1a1528;
@@ -101,9 +101,9 @@
   --hero-shadow-dark: 0 0 40px rgba(176, 146, 255, 0.38);
   --text-shadow-light: 0 1px 12px rgba(255, 247, 238, 0.72);
   --text-shadow-dark: 0 2px 14px rgba(5, 4, 15, 0.78);
-  --shade-top-light: rgba(235, 245, 255, 0.56);
+  --shade-top-light: rgba(255, 244, 234, 0.72);
   --shade-top-dark: rgba(5, 3, 12, 0.8);
-  --menu-bg-light: rgba(250, 252, 255, 0.76);
+  --menu-bg-light: rgba(255, 248, 242, 0.68);
   --menu-bg-dark: rgba(10, 7, 22, 0.36);
 
   // Fallback defaults (light) for browsers without light-dark()

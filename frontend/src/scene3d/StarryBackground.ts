@@ -96,18 +96,20 @@ export class StarryBackground {
           float moonHalo = pow(m, 60.0) * 0.32 + pow(m, 10.0) * 0.06;
           nightCol += vec3(0.42, 0.38, 0.78) * moonHalo;
 
-          // 白天晴空万里：清透湛蓝天顶 -> 明亮天蓝 -> 柔和淡天青地平线（舒适清爽不晃眼）
-          vec3 dawnHorizon = vec3(0.76, 0.87, 0.96);
-          vec3 dawnMid = vec3(0.50, 0.74, 0.94);
-          vec3 dawnUpper = vec3(0.24, 0.54, 0.88);
-          vec3 dawnZenith = vec3(0.11, 0.36, 0.76);
-          vec3 dawnCol = mix(dawnHorizon, dawnMid, smoothstep(0.0, 0.16, h));
-          dawnCol = mix(dawnCol, dawnUpper, smoothstep(0.12, 0.44, h));
-          dawnCol = mix(dawnCol, dawnZenith, smoothstep(0.36, 0.86, h));
+          // 黎明天色（沿用初版暖粉紫晨霞配色，微压 10% 亮度消除太阳附近过曝）
+          vec3 dawnHorizon = vec3(0.88, 0.68, 0.54);
+          vec3 dawnMid = vec3(0.70, 0.54, 0.65);
+          vec3 dawnUpper = vec3(0.30, 0.46, 0.72);
+          vec3 dawnZenith = vec3(0.14, 0.28, 0.55);
+          vec3 dawnCol = mix(dawnHorizon, dawnMid, smoothstep(0.0, 0.14, h));
+          dawnCol = mix(dawnCol, dawnUpper, smoothstep(0.10, 0.38, h));
+          dawnCol = mix(dawnCol, dawnZenith, smoothstep(0.30, 0.82, h));
 
-          // 柔和日晕：克制散射，保留晴朗暖意但不刺眼泛白
+          // 朝阳晨晖：保留初版暖金霞光，克制中心白斑
           float s = max(dot(d, uDawnSunDir), 0.0);
-          dawnCol += vec3(0.98, 0.92, 0.78) * (pow(s, 72.0) * 0.16 + pow(s, 14.0) * 0.05);
+          float sunAz = max(dot(normalize(d.xz + 1e-5), normalize(uDawnSunDir.xz + 1e-5)), 0.0);
+          dawnCol += vec3(0.92, 0.50, 0.34) * pow(sunAz, 2.4) * exp(-h * 5.8) * 0.30;
+          dawnCol += vec3(0.96, 0.76, 0.48) * (pow(s, 56.0) * 0.40 + pow(s, 9.0) * 0.12);
 
           vec3 col = mix(nightCol, dawnCol, uDawn);
 
@@ -128,12 +130,13 @@ export class StarryBackground {
           nightCloud += uGlowCore * pow(az, 8.0) * exp(-h * 9.0) * 0.45;
           nightCloud += vec3(0.30, 0.28, 0.55) * pow(m, 5.0) * 0.55 * fine;
 
-          // 晴空白云：柔和云底浅蓝影 + 干净洁白云顶
-          vec3 dawnCloud = mix(vec3(0.76, 0.83, 0.92), vec3(0.95, 0.97, 0.99), smoothstep(0.25, 0.85, fine));
-          dawnCloud += vec3(0.06, 0.05, 0.03) * pow(s, 6.0);
+          // 黎明朝霞云体：柔粉白金晨云 + 朝阳暖边
+          vec3 dawnCloud = vec3(0.78, 0.71, 0.74);
+          dawnCloud += vec3(0.24, 0.14, 0.08) * (0.4 + fine * 0.6) * pow(sunAz, 1.5);
+          dawnCloud += vec3(0.26, 0.20, 0.12) * pow(s, 4.5) * 0.55;
 
           vec3 cloud = mix(nightCloud, dawnCloud, uDawn);
-          col = mix(col, cloud, cover * mix(0.82, 0.42, uDawn));
+          col = mix(col, cloud, cover * mix(0.82, 0.56, uDawn));
 
           gl_FragColor = vec4(col, 1.0);
           #include <tonemapping_fragment>
@@ -262,10 +265,10 @@ export class StarryBackground {
     this.sunGlow = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: makeRadialTexture([
-          [0, 'rgba(255,238,184,0.34)'],
-          [0.32, 'rgba(255,212,132,0.14)'],
-          [0.65, 'rgba(255,196,112,0.04)'],
-          [1, 'rgba(255,190,104,0)'],
+          [0, 'rgba(255,210,136,0.34)'],
+          [0.28, 'rgba(255,164,92,0.16)'],
+          [0.6, 'rgba(242,120,76,0.05)'],
+          [1, 'rgba(235,104,64,0)'],
         ]),
         blending: THREE.AdditiveBlending,
         depthWrite: false,
@@ -276,7 +279,7 @@ export class StarryBackground {
       }),
     )
     this.sunGlow.position.copy(this.sunBasePos)
-    this.sunGlow.scale.setScalar(84)
+    this.sunGlow.scale.setScalar(108)
     this.sunGlow.renderOrder = -2
     this.sunGlow.visible = false
     this.group.add(this.sunGlow)
@@ -284,11 +287,11 @@ export class StarryBackground {
     this.sunSprite = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: makeRadialTexture([
-          [0, 'rgba(255,251,232,1)'],
-          [0.38, 'rgba(255,228,144,0.98)'],
-          [0.5, 'rgba(255,186,88,0.88)'],
-          [0.62, 'rgba(255,168,78,0.22)'],
-          [1, 'rgba(255,160,72,0)'],
+          [0, 'rgba(255,249,228,1)'],
+          [0.35, 'rgba(255,220,142,0.98)'],
+          [0.48, 'rgba(252,166,86,0.90)'],
+          [0.62, 'rgba(240,120,72,0.24)'],
+          [1, 'rgba(235,104,60,0)'],
         ]),
         transparent: true,
         depthWrite: false,
@@ -298,7 +301,7 @@ export class StarryBackground {
       }),
     )
     this.sunSprite.position.copy(this.sunBasePos)
-    this.sunSprite.scale.setScalar(38)
+    this.sunSprite.scale.setScalar(44)
     this.sunSprite.renderOrder = -1
     this.sunSprite.visible = false
     this.group.add(this.sunSprite)

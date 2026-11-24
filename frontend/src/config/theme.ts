@@ -27,7 +27,7 @@ export const syncSchemeMeta = (stored: StoredScheme) => {
   const resolved = resolveScheme(stored)
   const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
   if (themeColor) {
-    themeColor.content = resolved === 'dark' ? '#05040f' : '#7fb4e6'
+    themeColor.content = resolved === 'dark' ? '#05040f' : '#e8c4b0'
   }
 }
 

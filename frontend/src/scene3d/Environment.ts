@@ -13,14 +13,14 @@ export const MOON_DIR = new THREE.Vector3(-0.336, 0.191, -0.922).normalize()
 export const MOON_DISTANCE = 400
 /** 日落方位：太阳刚沉到地平线下，残霞在主角身后偏右 */
 export const SUN_DIR = new THREE.Vector3(0.47, 0.06, -0.88).normalize()
-/** 白天晴空太阳方向：清澈高空正中略偏左，桌面与移动端均清晰可见、便于点击 */
-export const DAWN_SUN_DIR = new THREE.Vector3(-0.14, 0.225, -0.964).normalize()
+/** 黎明朝阳方向：河面与远山正中上方，桌面与移动端均清晰可见、便于点击 */
+export const DAWN_SUN_DIR = new THREE.Vector3(-0.14, 0.2, -0.97).normalize()
 /** 暮霭：远景都褪进这层暗紫里 */
 export const FOG_COLOR = 0x2c1b47
 export const FOG_DENSITY = 0.0032
-/** 白天晴空远景大气透视：清澈淡天蓝薄雾 */
-export const DAWN_FOG_COLOR = 0xb4d3ee
-export const DAWN_FOG_DENSITY = 0.00115
+/** 黎明晨雾：初版暖杏晨霭微降一档明度，柔和不发白 */
+export const DAWN_FOG_COLOR = 0xd2b7b7
+export const DAWN_FOG_DENSITY = 0.00182
 
 /** 营地以原点为中心，远山圆环也以原点为圆心 */
 const RANGE_CX = 0
@@ -113,7 +113,6 @@ export class Environment {
   private rockMat: THREE.MeshStandardMaterial
   private hasGroundTex = false
   private hasRockTex = false
-  private currentDawn = 0
   private grassMat: THREE.MeshStandardMaterial
   private reedMat: THREE.MeshStandardMaterial
   private grass: THREE.InstancedMesh
@@ -222,7 +221,7 @@ export class Environment {
       rock.bumpMap = tex
       rock.bumpScale = 1.6
       this.hasRockTex = true
-      this.syncSurfaceAlbedo(this.currentDawn)
+      this.syncSurfaceAlbedo()
       rock.needsUpdate = true
     })
     void loadTexture('ground.jpg', tiled(1, 1)).then((tex) => {
@@ -231,7 +230,7 @@ export class Environment {
       groundMat.bumpMap = tex
       groundMat.bumpScale = 2.2
       this.hasGroundTex = true
-      this.syncSurfaceAlbedo(this.currentDawn)
+      this.syncSurfaceAlbedo()
       groundMat.needsUpdate = true
     })
 
@@ -574,58 +573,53 @@ export class Environment {
     return tree
   }
 
-  private syncSurfaceAlbedo(dawn: number) {
+  private syncSurfaceAlbedo() {
     if (this.hasGroundTex) {
-      this.groundMat.color.setRGB(
-        THREE.MathUtils.lerp(1.45, 2.05, dawn),
-        THREE.MathUtils.lerp(1.65, 2.15, dawn),
-        THREE.MathUtils.lerp(2.2, 1.85, dawn),
-      )
+      this.groundMat.color.setRGB(1.45, 1.65, 2.2)
     } else {
-      this.groundMat.color.setHex(0x3d3a56).lerp(this.tmpColor.setHex(0x969e82), dawn)
+      this.groundMat.color.setHex(0x3d3a56)
     }
 
     if (this.hasRockTex) {
-      this.rockMat.color.setHex(0x8a8298).lerp(this.tmpColor.setHex(0xc8c3ba), dawn)
+      this.rockMat.color.setHex(0x8a8298)
     } else {
-      this.rockMat.color.setHex(0x3d3a56).lerp(this.tmpColor.setHex(0x8e8d94), dawn)
+      this.rockMat.color.setHex(0x3d3a56)
     }
   }
 
-  /** 0 = 黑夜，1 = 晴空白天：同步过渡主光、天光、地表材质、远山、草木、薄雾与河面 */
+  /** 0 = 黑夜，1 = 黎明：沿用初版柔和晨光配色，亮度微压一档避免过曝 */
   setDawn(dawn: number, fogColor: THREE.Color, fogDensity: number) {
-    this.currentDawn = dawn
-    this.syncSurfaceAlbedo(dawn)
+    this.syncSurfaceAlbedo()
 
-    // 主定向光：冷月光 -> 清朗温和日光
-    this.moon.color.setHex(0xbdb6ff).lerp(this.tmpColor.setHex(0xfff5e4), dawn)
-    this.moon.intensity = THREE.MathUtils.lerp(2.6, 3.25, dawn)
+    // 主定向光：冷月光 -> 温润暖金朝阳
+    this.moon.color.setHex(0xbdb6ff).lerp(this.tmpColor.setHex(0xffe9c4), dawn)
+    this.moon.intensity = THREE.MathUtils.lerp(2.6, 3.15, dawn)
     this.moon.position.copy(this.moonLightPos).lerp(this.dawnLightPos, dawn)
 
-    // 天光：暗紫夜空 -> 湛蓝天光 + 暖草地反光（让前景人物、地面、石头明亮通透无死黑阴影）
-    this.hemi.color.setHex(0x6a55b0).lerp(this.tmpColor.setHex(0xa8d6ff), dawn)
-    this.hemi.groundColor.setHex(0x140b1c).lerp(this.tmpColor.setHex(0x9cb084), dawn)
-    this.hemi.intensity = THREE.MathUtils.lerp(1.05, 2.35, dawn)
+    // 天光：暗紫夜空 -> 柔和晨蓝 + 暖地反光
+    this.hemi.color.setHex(0x6a55b0).lerp(this.tmpColor.setHex(0xb0cef2), dawn)
+    this.hemi.groundColor.setHex(0x140b1c).lerp(this.tmpColor.setHex(0x86726a), dawn)
+    this.hemi.intensity = THREE.MathUtils.lerp(1.05, 1.82, dawn)
 
-    // 低角度暖光：残霞 -> 温和日光补光
-    this.dusk.color.setHex(0xff8a66).lerp(this.tmpColor.setHex(0xffe8c8), dawn)
-    this.dusk.intensity = THREE.MathUtils.lerp(0.85, 0.8, dawn)
+    // 低角度暖光：残霞 -> 柔和晨晖
+    this.dusk.color.setHex(0xff8a66).lerp(this.tmpColor.setHex(0xffb882), dawn)
+    this.dusk.intensity = THREE.MathUtils.lerp(0.85, 1.05, dawn)
 
-    // 远山与近岸植物：清透晴空蓝远山与鲜活草绿
-    this.ridgeMat.color.setHex(0x2a2440).lerp(this.tmpColor.setHex(0x628ec0), dawn)
-    this.grassMat.color.setHex(0x4a5a78).lerp(this.tmpColor.setHex(0x5d9448), dawn)
-    this.reedMat.color.setHex(0x2f2c44).lerp(this.tmpColor.setHex(0x678a52), dawn)
+    // 远山与近岸植物：保持初版淡紫蓝远山与自然克制草色
+    this.ridgeMat.color.setHex(0x2a2440).lerp(this.tmpColor.setHex(0x6a7092), dawn)
+    this.grassMat.color.setHex(0x4a5a78).lerp(this.tmpColor.setHex(0x677a6a), dawn)
+    this.reedMat.color.setHex(0x2f2c44).lerp(this.tmpColor.setHex(0x575f58), dawn)
 
-    // 浮尘微光：晴空白天淡化保持空气通透
-    this.moteMat.color.setHex(0xd6c4ff).lerp(this.tmpColor.setHex(0xfff4d6), dawn)
-    this.moteMat.opacity = THREE.MathUtils.lerp(0.7, 0.2, dawn)
+    // 浮尘微光：冷紫星尘 -> 暖金晨光微尘
+    this.moteMat.color.setHex(0xd6c4ff).lerp(this.tmpColor.setHex(0xffe6b3), dawn)
+    this.moteMat.opacity = THREE.MathUtils.lerp(0.7, 0.42, dawn)
 
-    // 河雾：晴空万里下收薄雾气，视野清透
+    // 河雾：暮紫雾 -> 柔暖晨雾（比初版略收敛防过白）
     this.tmpColor.setHex(0xffffff).lerp(this.dawnMistTint, dawn)
     for (const { sprite, baseOpacity } of this.mists) {
       const mat = sprite.material as THREE.SpriteMaterial
       mat.color.copy(this.tmpColor)
-      mat.opacity = baseOpacity * THREE.MathUtils.lerp(1, 0.35, dawn)
+      mat.opacity = baseOpacity * THREE.MathUtils.lerp(1, 1.05, dawn)
     }
 
     this.river.setDawn(dawn, this.dawnSunPos, fogColor, fogDensity)

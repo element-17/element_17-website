@@ -4,7 +4,7 @@
 .scene {
   &__vignette {
     @include fill;
-    background: radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(28, 62, 104, 0.12) 100%);
+    background: radial-gradient(ellipse at 50% 55%, transparent 38%, rgba(58, 38, 62, 0.22) 100%);
     pointer-events: none;
     will-change: opacity;
 

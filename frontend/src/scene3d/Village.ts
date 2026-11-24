@@ -239,9 +239,9 @@ export class Village {
   private static smokeTex: THREE.Texture | null = null
 
   update(time: number, dawn = 0) {
-    this.wallMat.color.setHex(0x1d1a30).lerp(this.tmpColor.setHex(0xdcd8ce), dawn)
-    this.roofMat.color.setHex(0x100d1c).lerp(this.tmpColor.setHex(0x4a6382), dawn)
-    const lampScale = 1 - dawn * 0.94
+    this.wallMat.color.setHex(0x1d1a30).lerp(this.tmpColor.setHex(0x665c74), dawn)
+    this.roofMat.color.setHex(0x100d1c).lerp(this.tmpColor.setHex(0x413a52), dawn)
+    const lampScale = 1 - dawn * 0.8
     for (const { mat, phase, base } of this.lampGroups) {
       const f = 0.78 + 0.2 * Math.sin(time * (1.8 + (phase % 2.4)) + phase) + 0.06 * Math.sin(time * 13 + phase * 3)
       mat.emissiveIntensity = base * f * lampScale
