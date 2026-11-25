@@ -1,10 +1,10 @@
 <div align="center">
 
-# 孤剑夜行 · Lone Blade
+# element_17 · Personal Website
 
-**element_17 的 3D 交互个人网站（Full-Stack & Agent Engineer）**
+**3D 交互式全栈个人网站（Full-Stack & Agent Engineer）**
 
-*一块实时渲染的 WebGL 暮色河景，承载技术随笔、开源作品、个人履历与访客传书。*
+*基于 React 19 + Three.js + Spring Boot 4 构建的个人站点，整合 WebGL 3D 交互场景、技术博客、开源作品展示与访客留言系统。*
 
 [![Build & Deploy](https://img.shields.io/github/actions/workflow/status/element-17/element_17-website/deploy.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=Build%20%26%20Deploy)](https://github.com/element-17/element_17-website/actions/workflows/deploy.yml)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -23,31 +23,31 @@
 
 ---
 
-## 站内一览
+## 站内模块
 
-整个站点围绕一幅实时生成的 **Three.js 暮色河景** 展开——星空、水面倒影、乌篷船、篝火、远村与孤剑客在同一 3D 世界中串联起五个章节，切换页面时以平滑运镜穿梭其间，所有文章、项目与留言数据均由 Spring Boot + MySQL + Redis 后端实时驱动。
+站点通过一块实时渲染的 **Three.js 3D 场景** 串联起五个页面，切换模块时由 GSAP 驱动镜头平滑过渡，所有文章、项目与留言内容均由后端 API 实时提供：
 
-| 章节 | 入口 | 内容与体验 |
+| 模块 | 锚点 | 说明 |
 | :--- | :--- | :--- |
-| `00` **首页** | `#home` | 3D 孤剑暮色主景、个人定位与站点总览 |
-| `01` **随笔** | `#blog` | 技术文章与古卷式阅读弹窗（Markdown 安全渲染 + 实时阅读量统计） |
-| `02` **作品** | `#projects` | 开源项目与全栈 / Agent 工程作品集中展示 |
-| `03` **关于** | `#about` | 个人简介、技术栈与成长脉络 |
-| `04` **联系** | `#contact` | 「飞鸽传书」访客留言板与外部社交入口 |
+| `00` **首页** | `#home` | 3D 交互主场景、个人简介与站点总览 |
+| `01` **随笔** | `#blog` | 技术文章列表与弹窗阅读（Markdown 安全渲染 + 实时阅读量） |
+| `02` **作品** | `#projects` | 开源项目与全栈 / Agent 代表作品展示 |
+| `03` **关于** | `#about` | 个人履历、技术栈与方向介绍 |
+| `04` **联系** | `#contact` | 访客留言板与外部联系方式 |
 
 ---
 
-## 亮点设计
+## 核心特性
 
-### 沉浸式 3D 与前端体验
-- **程序化 WebGL 世界**：基于 Three.js 构建河岸地形、自定义 GLSL 水面倒影着色器、摇曳乌篷船、动态篝火、远山村落与主角剑客，配合 GSAP 完成章节运镜与鼠标视差。
-- **首屏与渲染优化**：`three` 独立异步拆包，首帧以「入夜」过渡平滑衔接；支持 **低 / 中 / 高** 三档自适应画质切换、页面切后台自动暂停渲染循环、`prefers-reduced-motion` 减动效适配与 WebGL 不可用纯 CSS 优雅降级。
-- **顺手交互**：支持底部章节导航、键盘 `←` / `→` 切换、数字键 `1`～`5` 直达、URL Hash 分享定位以及明暗主题切换。
+### 3D 场景与前端体验
+- **程序化 WebGL 场景**：基于 Three.js 搭建实时 3D 夜景环境与自定义 GLSL 水面倒影着色器，配合 GSAP 实现多机位镜头切换与鼠标视差。
+- **渲染性能与兼容**：`three` 独立异步拆包降低首屏阻塞；支持 **低 / 中 / 高** 三档自适应画质、页面切后台自动暂停渲染、`prefers-reduced-motion` 减动效适配、WebGL 不可用纯 CSS 降级以及明暗主题切换。
+- **便捷交互**：支持底部导航、键盘 `←` / `→` 切换、数字键 `1`～`5` 直达与 URL Hash 定位分享。
 
-### 生产级全栈后端与自动化部署
-- **多级缓存与阅读量缓冲**：Redis Cache-Aside 缓存（随机抖动 TTL 防雪崩 + 空值占位防穿透 + Redis 异常自动降级直连 MySQL）；文章阅读量通过 Redis 10 分钟 IP UV 去重 + Hash 累加 + `@Scheduled` 定时批量回写 MySQL，消除写热点。
-- **安全与鉴权**：单站长 JWT（HMAC-SHA256）+ BCrypt 密码加密，支持 `jti` 黑名单即时登出与 `tokenVersion` 改密全端失效；访客留言与登录均配备 Redis IP 限流防刷。
-- **按需 CI/CD 流水线**：GitHub Actions 自动检测 `frontend/` 与 `backend/` 变更路径，按需触发编译、Lint、打包与 SSH 原子替换部署。
+### 全栈后端与工程实践
+- **缓存与阅读量缓冲**：采用 Redis Cache-Aside 策略（随机抖动 TTL 防雪崩、空值占位防穿透、Redis 异常自动降级直连 MySQL）；文章阅读量经 Redis IP 10 分钟 UV 去重与 Hash 缓冲后，由 `@Scheduled` 定时批量回写 MySQL。
+- **鉴权与安全防护**：后台管理基于 JWT（HMAC-SHA256）+ BCrypt，支持 `jti` 黑名单即时登出与 `tokenVersion` 改密全端失效；访客留言与登录接口均配置 Redis IP 限流防刷。
+- **按需 CI/CD 部署**：GitHub Actions 自动检测 `frontend/` 与 `backend/` 路径变更，按需执行构建检查与 SSH 原子替换发布。
 
 ---
 
@@ -55,7 +55,7 @@
 
 ```mermaid
 flowchart LR
-    FE["前端 · React 19 + TypeScript<br/>Three.js 3D 场景 + GSAP 运镜"] -->|HTTPS / REST /api/v1| API["Spring Boot 4.1 · Java 21<br/>Public & Admin Controllers"]
+    FE["前端 · React 19 + TypeScript<br/>Three.js 3D 场景 + GSAP 动效"] -->|HTTPS / REST /api/v1| API["Spring Boot 4.1 · Java 21<br/>Public & Admin Controllers"]
     API -->|JWT + jti 黑名单 + IP 限流| SVC["Service 业务层"]
     SVC <-->|Cache-Aside / 阅读量缓冲 / 限流| REDIS[("Redis 7.4")]
     SVC <-->|MyBatis Mapper| MYSQL[("MySQL 8.4")]
@@ -68,13 +68,13 @@ flowchart LR
 ## 本地运行
 
 ```bash
-# 1. 启动本地数据库与缓存（自动执行建表与示例种子数据）
+# 1. 启动本地 MySQL 8.4 + Redis 7.4（自动初始化建表与种子数据）
 docker compose up -d
 
-# 2. 启动 Spring Boot 后端（http://localhost:8080）
+# 2. 启动 Spring Boot 后端（默认端口 8080）
 cd backend && ./mvnw spring-boot:run
 
-# 3. 启动前端开发服务（http://localhost:5173）
+# 3. 启动前端开发服务器（默认端口 5173）
 cd frontend && npm install && npm run dev
 ```
 
@@ -82,7 +82,7 @@ cd frontend && npm install && npm run dev
 
 ## 延伸文档
 
-若需查阅详细的接口契约、表结构或部署清单，请前往 [`docs/`](docs/README.md)：
+完整的接口契约、数据库表结构与生产部署指南请参阅 [`docs/`](docs/README.md)：
 
 - [架构与开发规范](docs/architecture.md) · [数据库与 Redis 设计](docs/database.md) · [RESTful 接口文档](docs/api.md) · [开发联调与部署指南](docs/deployment.md)
 
