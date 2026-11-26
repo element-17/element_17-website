@@ -101,6 +101,10 @@ export class CampProps {
   private kite: THREE.Object3D | null = null
   private hotSteelMat: THREE.MeshStandardMaterial | null = null
   private forgeGlow: THREE.Sprite | null = null
+  private paperMat: THREE.MeshStandardMaterial | null = null
+  private stoneMat: THREE.MeshStandardMaterial | null = null
+  private dryStoneColor = new THREE.Color(0x35304a)
+  private snowStoneColor = new THREE.Color(0x9aa8c4)
 
   constructor() {
     const rand = seededRandom(83)
@@ -112,6 +116,7 @@ export class CampProps {
       emissive: 0x171226,
       emissiveIntensity: 0.9,
     })
+    this.stoneMat = stone
     // 铁器：锻打后的暗铁质感，粗糙度收稳避免掠射角高光在辉光里过曝
     const metal = new THREE.MeshStandardMaterial({ color: 0x5c5775, metalness: 0.48, roughness: 0.58 })
     const bladeMat = new THREE.MeshStandardMaterial({
@@ -163,6 +168,7 @@ export class CampProps {
       emissive: 0x5a4226,
       emissiveIntensity: 0.32,
     })
+    this.paperMat = paperMat
     const paper = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), paperMat)
     paper.position.y = y + 0.003
     paper.receiveShadow = true
@@ -459,29 +465,47 @@ export class CampProps {
     this.lanterns.push({ light, globe, phase: this.lanterns.length * 2.1, base })
   }
 
-  /** 灯笼呼吸式闪烁 + 剑坯余温 + 纸鸢轻摆 + 信鸽转头 */
-  update(time: number, dawn = 0) {
-    const dim = 1 - dawn * 0.65
+  /** 随天气移动主角位置时，同步更新「来历」点击拾取球心 */
+  updateHeroInteractCenter(pos: THREE.Vector3) {
+    const aboutZone = this.interactZones.find((z) => z.id === 'about')
+    if (aboutZone) aboutZone.center.copy(pos)
+  }
+
+  /** 灯笼呼吸式闪烁 + 剑坯余温 + 纸鸢轻摆 + 信鸽转头（联动雨雪风） */
+  update(time: number, dawn = 0, rain = 0, snow = 0, wind = 1) {
+    // 雨雪天纸灯笼保持更明显的暖光指引
+    const dim = (1 - dawn * 0.65) * (1 + (rain + snow) * 0.22)
     for (const { light, globe, phase, base } of this.lanterns) {
       const f = 0.84 + 0.1 * Math.sin(time * 2.7 + phase) + 0.05 * Math.sin(time * 11.3 + phase * 1.7)
       light.intensity = base * f * dim
       globe.material.emissiveIntensity = (1.25 * f + 0.35) * dim
     }
+    // 雨天篝火熄灭后略抬古卷纸面微光，确保墨字清晰可读
+    if (this.paperMat) {
+      this.paperMat.emissiveIntensity = 0.32 + rain * 0.16
+    }
+    // 雪天陈设石基轻覆白霜
+    if (this.stoneMat) {
+      this.stoneMat.color.copy(this.dryStoneColor).lerp(this.snowStoneColor, snow * 0.68)
+    }
+    // 雨水会压暗锻打剑坯的余温红光
     if (this.hotSteelMat) {
-      const heat = 0.85 + 0.15 * Math.sin(time * 1.9) + 0.06 * Math.sin(time * 4.7)
+      const heat = (0.85 + 0.15 * Math.sin(time * 1.9) + 0.06 * Math.sin(time * 4.7)) * Math.max(0.18, 1 - rain * 0.82)
       this.hotSteelMat.emissiveIntensity = 0.72 * heat * (1 - dawn * 0.35)
-      if (this.forgeGlow) this.forgeGlow.material.opacity = 0.28 * heat * dim
+      if (this.forgeGlow) this.forgeGlow.material.opacity = 0.28 * heat * (1 - dawn * 0.65)
     }
     if (this.kite) {
-      this.kite.rotation.z = Math.sin(time * 1.45) * 0.09
-      this.kite.rotation.y = 0.5 + Math.sin(time * 0.9 + 0.7) * 0.12
+      const wf = 0.8 + wind * 0.45
+      this.kite.rotation.z = Math.sin(time * 1.45 * wf) * (0.09 * wf)
+      this.kite.rotation.y = 0.5 + Math.sin(time * 0.9 * wf + 0.7) * (0.12 * wf)
     }
     if (this.pigeonHead) {
-      // 大部分时间静止，隔几秒转一下头
       const t = time % 5.3
+      const shelter = Math.max(rain, snow)
       const turn = t < 0.35 ? Math.sin((t / 0.35) * Math.PI) : 0
-      this.pigeonHead.rotation.y = Math.sin(Math.floor(time / 5.3) * 2.4) * 0.7 * (t < 2.6 ? 1 : 0) + turn * 0.25
-      this.pigeonHead.position.y = 0.07 + Math.max(0, Math.sin(time * 3.1)) * 0.004
+      this.pigeonHead.rotation.y =
+        (Math.sin(Math.floor(time / 5.3) * 2.4) * 0.7 * (t < 2.6 ? 1 : 0) + turn * 0.25) * (1 - shelter * 0.5)
+      this.pigeonHead.position.y = 0.07 - shelter * 0.012 + Math.max(0, Math.sin(time * 3.1)) * 0.004
     }
   }
 }

@@ -11,6 +11,7 @@ import type { QualityLevel, QualityPreset } from '../config/quality'
 import { QUALITY_PRESETS } from '../config/quality'
 import { CAMP } from '../config/shots'
 import type { ThemeScheme } from '../config/theme'
+import type { WeatherKind } from '../config/weather'
 import { Boat, Dock, ShoreProps } from './Boat'
 import { Campfire } from './Campfire'
 import { CampProps } from './CampProps'
@@ -29,8 +30,9 @@ import { DETAIL_LAYER } from './merge'
 import { StarryBackground } from './StarryBackground'
 import { StickmanSwordsman } from './StickmanSwordsman'
 import { Village } from './Village'
+import { WeatherSystem } from './WeatherSystem'
 
-/** 3D 世界：渲染器 + 场景装配 + 帧循环 + 画质调度 + 古卷投影与点击交互 */
+/** 3D 世界：渲染器 + 场景装配 + 昼夜与实时天气融合 + 帧循环 + 画质调度 + 古卷投影与点击交互 */
 export class World {
   private renderer: THREE.WebGLRenderer
   private canvas: HTMLCanvasElement
@@ -46,6 +48,7 @@ export class World {
   private boat: Boat
   private dock: Dock
   private shoreProps: ShoreProps
+  private weatherSys: WeatherSystem
   private composer: EffectComposer | null = null
   private bloomPass: UnrealBloomPass | null = null
   private fog: THREE.FogExp2
@@ -67,13 +70,27 @@ export class World {
   private targetDawn = 0
   private dawnAnim: { from: number; to: number; start: number; duration: number } | null = null
   private reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
   private nightBg = new THREE.Color(0x05040f)
   private dawnBg = new THREE.Color(0x728bb8)
+  private rainNightBg = new THREE.Color(0x0c111e)
+  private rainDawnBg = new THREE.Color(0x5c697a)
+  private snowNightBg = new THREE.Color(0x181f34)
+  private snowDawnBg = new THREE.Color(0x9fb0c8)
+
   private nightFog = new THREE.Color(FOG_COLOR)
   private dawnFog = new THREE.Color(DAWN_FOG_COLOR)
+  private rainNightFog = new THREE.Color(0x1b2236)
+  private rainDawnFog = new THREE.Color(0x95a2b2)
+  private snowNightFog = new THREE.Color(0x3a4360)
+  private snowDawnFog = new THREE.Color(0xd2dce8)
   private curFogColor = new THREE.Color(FOG_COLOR)
+  private tmpColor = new THREE.Color()
+
   private keyNightColor = new THREE.Color(0xc0b4ff)
   private keyDawnColor = new THREE.Color(0xfff1dc)
+  private heroFocus = new THREE.Vector3()
+  private focusAnchor = new THREE.Vector3()
 
   // 轻量点击拾取（仅球体求交，不逐帧跑网格 Raycast）
   private raycaster = new THREE.Raycaster()
@@ -90,6 +107,7 @@ export class World {
     /** 初始站点：直接从 hash 进来时，相机第一帧就要落在正确的位置上 */
     initialModule: ModuleId,
     initialTheme: ThemeScheme,
+    initialWeather: WeatherKind = 'clear',
     onReady?: () => void,
     onSelect?: (id: ModuleId) => void,
     onToggleTheme?: () => void,
@@ -112,7 +130,6 @@ export class World {
       powerPreference: 'high-performance',
     })
     this.renderer.shadowMap.enabled = this.preset.shadowMapSize > 0
-    // PCFSoftShadowMap 自 r186 起废弃（已并入 PCFShadowMap）
     this.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 1.0
@@ -128,15 +145,15 @@ export class World {
     this.fire = new Campfire()
     this.fire.group.position.set(CAMP.fire.x, 0, CAMP.fire.z)
 
-    // 主角倚石坐在营地中心
+    // 主角：按初始天气自动落位（晴/阴倚石、雨天河畔垂钓、雪天围炉烤火）
     this.hero = new StickmanSwordsman()
-    this.hero.group.position.set(CAMP.hero.x, 0, CAMP.hero.z)
-    this.hero.setPose()
     this.hero.setModule(initialModule)
+    this.hero.setWeather(initialWeather, true)
     this.scene.add(this.hero.group)
 
     // 营地三件陈设：篝火旁的古卷矮几 / 右后方的铁砧插剑 / 水边的灯杆与信鸽
     this.props = new CampProps()
+    this.props.updateHeroInteractCenter(this.hero.getFocusWorldPosition(this.heroFocus))
     this.scene.add(this.props.group)
 
     // 河上的陈设：泊在月下的乌篷船、对岸小码头、近岸枯木与系船桩
@@ -148,16 +165,20 @@ export class World {
     this.village = new Village()
     this.scene.add(this.village.group)
 
-    // 跟随镜头的柔冷补光：放在镜头附近且亮度克制，避免近景俯拍时把地面或铁砧打出一块强反光
+    // 天气粒子（雨丝、飘雪、水花圈）与气象状态机
+    this.weatherSys = new WeatherSystem(initialWeather, this.reduceMotion)
+    this.scene.add(this.weatherSys.group)
+
+    // 跟随镜头的柔冷补光
     this.keyLight = new THREE.PointLight(0xc0b4ff, 1.8, 12, 2)
     this.camera.add(this.keyLight)
 
     this.scene.add(this.sky.group, this.env.group, this.fire.group, this.camera)
 
     this.applyPresetToSubsystems()
-    this.applyDawn(this.dawn)
+    this.applyAtmosphere()
 
-    this.controller = new SceneTransitionController(this.camera, uiRoot)
+    this.controller = new SceneTransitionController(this.camera, uiRoot, initialWeather)
     this.controller.goTo(initialModule)
 
     this.sheet = new SheetProjector(
@@ -192,10 +213,17 @@ export class World {
     if (this.reduceMotion) {
       this.dawn = next
       this.dawnAnim = null
-      this.applyDawn(this.dawn)
+      this.applyAtmosphere()
       return
     }
     this.dawnAnim = { from: this.dawn, to: next, start: performance.now(), duration: 0.85 }
+  }
+
+  setWeather(kind: WeatherKind, options?: { thunder?: boolean; windSpeed?: number }) {
+    this.weatherSys.setWeather(kind, options)
+    this.hero.setWeather(kind)
+    this.props.updateHeroInteractCenter(this.hero.getFocusWorldPosition(this.heroFocus))
+    this.controller.setWeather(kind)
   }
 
   setQuality(id: QualityLevel) {
@@ -206,7 +234,6 @@ export class World {
     this.renderer.shadowMap.enabled = nextShadows
     this.applyPresetToSubsystems()
 
-    // 阴影开关在运行时切换后，需要让受影材质重新编译着色器
     if (prevShadows !== nextShadows) {
       this.scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh
@@ -231,6 +258,7 @@ export class World {
       programs: programs?.length,
       pointLights: lights,
       pixelRatio: this.renderer.getPixelRatio(),
+      weather: this.weatherSys.state.kind,
     }
   }
 
@@ -264,21 +292,41 @@ export class World {
     this.env.applyQuality(this.preset)
     this.sky.applyQuality(this.preset)
     this.village.applyQuality(this.preset)
+    this.weatherSys.applyQuality(this.preset)
   }
 
-  private applyDawn(dawn: number) {
-    ;(this.scene.background as THREE.Color).copy(this.nightBg).lerp(this.dawnBg, dawn)
+  /** 将昼夜与实时天气状态融合到背景、雾效、辉光与天空/环境着色器 */
+  private applyAtmosphere() {
+    const dawn = this.dawn
+    const w = this.weatherSys.state
+
+    const bg = this.scene.background as THREE.Color
+    bg.copy(this.nightBg).lerp(this.dawnBg, dawn)
+    this.tmpColor.copy(this.rainNightBg).lerp(this.rainDawnBg, dawn)
+    bg.lerp(this.tmpColor, w.rain * 0.85)
+    this.tmpColor.copy(this.snowNightBg).lerp(this.snowDawnBg, dawn)
+    bg.lerp(this.tmpColor, w.snow * 0.78)
+
     this.curFogColor.copy(this.nightFog).lerp(this.dawnFog, dawn)
-    const fogDensity = THREE.MathUtils.lerp(FOG_DENSITY, DAWN_FOG_DENSITY, dawn)
+    this.tmpColor.copy(this.rainNightFog).lerp(this.rainDawnFog, dawn)
+    this.curFogColor.lerp(this.tmpColor, w.rain * 0.82)
+    this.tmpColor.copy(this.snowNightFog).lerp(this.snowDawnFog, dawn)
+    this.curFogColor.lerp(this.tmpColor, w.snow * 0.78)
+
+    const baseFogDensity = THREE.MathUtils.lerp(FOG_DENSITY, DAWN_FOG_DENSITY, dawn)
+    const fogDensity = baseFogDensity * (1 + w.cloudy * 0.25 + w.rain * 0.65 + w.snow * 0.5)
     this.fog.color.copy(this.curFogColor)
     this.fog.density = fogDensity
+
     this.keyLight.color.copy(this.keyNightColor).lerp(this.keyDawnColor, dawn)
     if (this.bloomPass) {
-      this.bloomPass.strength = THREE.MathUtils.lerp(0.42, 0.14, dawn)
+      this.bloomPass.strength = THREE.MathUtils.lerp(0.42, 0.14, dawn) * (1 - w.rain * 0.35)
       this.bloomPass.threshold = THREE.MathUtils.lerp(0.82, 0.96, dawn)
     }
+
     this.sky.setDawn(dawn)
-    this.env.setDawn(dawn, this.curFogColor, fogDensity)
+    this.sky.setWeather(w.cloudiness, w.rain, w.snow, w.thunderFlash)
+    this.env.setAtmosphere(dawn, w, this.curFogColor, fogDensity)
   }
 
   /** 按需创建辉光后期：低画质下永不分配 4x MSAA HalfFloat 帧缓冲 */
@@ -314,6 +362,7 @@ export class World {
       composer.setSize(w, h)
     }
     this.sky.setPixelRatio(ratio)
+    this.weatherSys.setPixelRatio(ratio)
     this.env.setReflectionSize(w * this.preset.reflection, h * this.preset.reflection)
   }
 
@@ -400,27 +449,39 @@ export class World {
         this.dawn = this.dawnAnim.to
         this.dawnAnim = null
       }
-      this.applyDawn(this.dawn)
     }
 
     controller.update(this.width, this.height)
+
+    // 粒子包围盒以当前注视点与相机中点为锚，保证所有机位都被雨雪均匀包围
+    this.focusAnchor.set(
+      (state.px + state.tx) * 0.5,
+      0,
+      (state.pz + state.tz) * 0.5,
+    )
+    this.weatherSys.update(time, dt, this.dawn, this.focusAnchor)
+    this.applyAtmosphere()
+
+    const w = this.weatherSys.state
 
     // 相机抵达古卷前时让 DOM 墨字缓缓浮现，离开时立刻隐去
     const sheetActive = controller.current === 'blog' && controller.progress > 0.62
     this.sheet.update(this.camera, this.width, this.height, sheetActive, dt)
 
-    // 藏卷近景俯拍时压低随身冷补光，把古卷彻底交给篝火暖光
+    // 藏卷近景俯拍时压低随身冷补光；雨天熄火时保留微弱柔光照亮卷面与主角
     const isBlog = controller.current === 'blog'
-    const baseKey = THREE.MathUtils.lerp(1.8, 0.85, this.dawn)
-    this.keyLight.intensity += ((isBlog ? 0.45 : baseKey) - this.keyLight.intensity) * Math.min(1, dt * 5)
+    const baseKey = THREE.MathUtils.lerp(1.8, 0.85, this.dawn) * (1 + w.rain * 0.25)
+    const targetKey = isBlog ? (0.45 + w.rain * 0.55) : baseKey
+    this.keyLight.intensity += (targetKey - this.keyLight.intensity) * Math.min(1, dt * 5)
     this.keyLight.position.set(mouse.x * 1.8, 0.9 - mouse.y * 1.0, -0.6)
+
     this.sky.update(time)
     this.env.update(time, dt)
-    this.fire.update(time, state.fire * (1 - this.dawn * 0.52))
-    this.village.update(time, this.dawn)
-    this.props.update(time, this.dawn)
-    this.boat.update(time, this.dawn)
-    this.hero.update(time, dt, mouse.x * 0.12)
+    this.fire.update(time, state.fire * (1 - this.dawn * 0.52), w.rain, w.snow)
+    this.village.update(time, this.dawn, w.rain, w.snow)
+    this.props.update(time, this.dawn, w.rain, w.snow, w.wind)
+    this.boat.update(time, this.dawn, w.wind, w.snow)
+    this.hero.update(time, dt, mouse.x * 0.12, w.wind, w.snow)
 
     this.renderer.toneMappingExposure = state.exposure * THREE.MathUtils.lerp(1, 0.96, this.dawn)
     if (this.preset.bloom) this.ensureComposer().render()

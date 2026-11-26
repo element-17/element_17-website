@@ -41,14 +41,18 @@ export class Boat {
   readonly group = new THREE.Group()
   private body = new THREE.Group()
   private lanternMat: THREE.MeshStandardMaterial
+  private canopyMat: THREE.MeshStandardMaterial
   private halo: THREE.Sprite
   private baseY: number
   private phase = 1.7
+  private dryCanopyColor = new THREE.Color(0x2b2436)
+  private snowCanopyColor = new THREE.Color(0xb8c8e2)
 
   constructor() {
     const wood = new THREE.MeshStandardMaterial({ color: 0x241d2c, roughness: 0.88 })
     const darkWood = new THREE.MeshStandardMaterial({ color: 0x161220, roughness: 0.95 })
     const mat = new THREE.MeshStandardMaterial({ color: 0x2b2436, roughness: 0.9, flatShading: true })
+    this.canopyMat = mat
 
     // 船身：两头收窄的梭形
     const hullGeo = new THREE.CylinderGeometry(0.46, 0.46, 3.5, 12, 3)
@@ -136,10 +140,13 @@ export class Boat {
     this.group.rotation.y = 0.28
   }
 
-  update(time: number, dawn = 0) {
-    this.group.position.y = this.baseY + Math.sin(time * 0.62) * 0.03
-    this.group.rotation.z = Math.sin(time * 0.47 + 0.8) * 0.026
-    this.group.rotation.x = Math.sin(time * 0.53 + 2.1) * 0.012
+  update(time: number, dawn = 0, wind = 1, snow = 0) {
+    const sway = 0.8 + wind * 0.45
+    this.group.position.y = this.baseY + Math.sin(time * 0.62 * Math.sqrt(sway)) * 0.03 * sway
+    this.group.rotation.z = Math.sin(time * 0.47 * Math.sqrt(sway) + 0.8) * 0.026 * sway
+    this.group.rotation.x = Math.sin(time * 0.53 + 2.1) * 0.012 * sway
+
+    this.canopyMat.color.copy(this.dryCanopyColor).lerp(this.snowCanopyColor, snow * 0.78)
 
     const dim = 1 - dawn * 0.68
     const f = 0.84 + 0.1 * Math.sin(time * 2.7 + this.phase) + 0.05 * Math.sin(time * 11.3 + this.phase * 1.7)

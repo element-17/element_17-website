@@ -238,15 +238,20 @@ export class Village {
 
   private static smokeTex: THREE.Texture | null = null
 
-  update(time: number, dawn = 0) {
+  update(time: number, dawn = 0, rain = 0, snow = 0) {
     this.wallMat.color.setHex(0x1d1a30).lerp(this.tmpColor.setHex(0x665c74), dawn)
     this.roofMat.color.setHex(0x100d1c).lerp(this.tmpColor.setHex(0x413a52), dawn)
-    const lampScale = 1 - dawn * 0.8
+    // 雪天屋顶覆雪
+    this.roofMat.color.lerp(this.tmpColor.setHex(dawn > 0.5 ? 0xeaf0fb : 0x9aa8c6), snow * 0.85)
+
+    // 雨雪天气村落窗灯略更暖亮
+    const lampScale = (1 - dawn * 0.8) * (1 + (rain + snow) * 0.28)
     for (const { mat, phase, base } of this.lampGroups) {
       const f = 0.78 + 0.2 * Math.sin(time * (1.8 + (phase % 2.4)) + phase) + 0.06 * Math.sin(time * 13 + phase * 3)
       mat.emissiveIntensity = base * f * lampScale
     }
     if (!this.smokeActive) return
+    const smokeWeight = Math.max(0.08, (1 - rain * 0.88) * (1 + snow * 0.42))
     for (const { sprites, origin, height, speed, phase } of this.smokes) {
       const n = sprites.length
       for (let i = 0; i < n; i++) {
@@ -259,7 +264,7 @@ export class Village {
         )
         const grow = 1 + life * 2.2
         sprite.scale.set(1.5 * grow, 1.3 * grow, 1)
-        sprite.material.opacity = 0.3 * Math.sin(Math.PI * Math.min(life * 1.1, 1))
+        sprite.material.opacity = Math.min(0.45, 0.3 * smokeWeight * Math.sin(Math.PI * Math.min(life * 1.1, 1)))
       }
     }
   }

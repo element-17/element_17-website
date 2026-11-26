@@ -11,11 +11,17 @@ import {
   type ProjectItem,
   type SiteOverview,
 } from '../../api/client'
+import {
+  WEATHER_REFRESH_INTERVAL_MS,
+  fetchNenuWeather,
+  readCachedNenuWeather,
+} from '../../api/weather'
 import { ArticleDialog } from '../../components/ArticleDialog/ArticleDialog'
 import { MessageDialog } from '../../components/MessageDialog/MessageDialog'
 import { ModuleMenu } from '../../components/ModuleMenu/ModuleMenu'
 import { ModulePanel } from '../../components/ModulePanel/ModulePanel'
 import { ScrollSheet } from '../../components/ScrollSheet/ScrollSheet'
+import { WeatherWidget } from '../../components/WeatherWidget/WeatherWidget'
 import { MODULE_IDS, isModuleId, moduleIndex, type ModuleId } from '../../config/modules'
 import {
   QUALITY_LABELS,
@@ -31,6 +37,13 @@ import {
   toggleThemeScheme,
   type ThemeScheme,
 } from '../../config/theme'
+import {
+  loadSavedWeatherMode,
+  saveWeatherMode,
+  type LiveWeather,
+  type WeatherKind,
+  type WeatherMode,
+} from '../../config/weather'
 import './HomePage.scss'
 
 // three 体积较大，拆成独立 chunk，首帧由「入夜」加载提示兜住
@@ -54,6 +67,53 @@ export function HomePage() {
   const [quality, setQuality] = useState<QualityLevel>(initialQuality)
   const [theme, setTheme] = useState<ThemeScheme>(() => resolveScheme())
   const [fallback, setFallback] = useState(false)
+
+  // 东北师范大学实时天气与场景天气模式（默认跟随实时，可手动切 晴 / 阴 / 雨 / 雪 体验）
+  const [weatherMode, setWeatherMode] = useState<WeatherMode>(() => loadSavedWeatherMode())
+  const [liveWeather, setLiveWeather] = useState<LiveWeather | null>(() => readCachedNenuWeather())
+  const [weatherLoading, setWeatherLoading] = useState(() => readCachedNenuWeather() === null)
+  const [weatherError, setWeatherError] = useState<string | null>(null)
+  const [weatherTick, setWeatherTick] = useState(0)
+
+  const effectiveWeather: WeatherKind = weatherMode === 'live' ? (liveWeather?.kind ?? 'clear') : weatherMode
+  const effectiveThunder = weatherMode === 'live' && Boolean(liveWeather?.isThunder)
+  const effectiveWindSpeed = weatherMode === 'live' ? liveWeather?.windSpeed : undefined
+
+  const refreshWeather = () => {
+    setWeatherLoading(true)
+    setWeatherError(null)
+    setWeatherTick((n) => n + 1)
+  }
+
+  const pickWeatherMode = (next: WeatherMode) => {
+    setWeatherMode(next)
+    saveWeatherMode(next)
+  }
+
+  useEffect(() => {
+    const ac = new AbortController()
+    const load = (force: boolean) => {
+      fetchNenuWeather({ force, signal: ac.signal })
+        .then((data) => {
+          if (ac.signal.aborted) return
+          setLiveWeather(data)
+          setWeatherError(null)
+        })
+        .catch((err: unknown) => {
+          if (ac.signal.aborted) return
+          setWeatherError(err instanceof Error ? err.message : '东北师大天气获取失败')
+        })
+        .finally(() => {
+          if (!ac.signal.aborted) setWeatherLoading(false)
+        })
+    }
+    load(weatherTick > 0)
+    const timer = window.setInterval(() => load(true), WEATHER_REFRESH_INTERVAL_MS)
+    return () => {
+      ac.abort()
+      window.clearInterval(timer)
+    }
+  }, [weatherTick])
 
   // 实时后端数据（无静态兜底）
   const [site, setSite] = useState<SiteOverview | null>(null)
@@ -190,10 +250,12 @@ export function HomePage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [modalOpen])
 
-  // 滚轮与触屏横滑切换章节（弹窗打开时让位给正文滚动）
+  // 滚轮与触屏横滑切换章节（弹窗打开或指针在天气浮层内时让位）
   useEffect(() => {
+    const inWeatherPopover = (target: EventTarget | null) =>
+      target instanceof Element && target.closest('[data-weather-popover]') !== null
     const onWheel = (e: WheelEvent) => {
-      if (modalOpen) return
+      if (modalOpen || inWeatherPopover(e.target)) return
       const dominant = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX
       if (Math.abs(dominant) < 28) return
       const now = performance.now()
@@ -202,7 +264,7 @@ export function HomePage() {
       stepModule(dominant > 0 ? 1 : -1)
     }
     const onTouchStart = (e: TouchEvent) => {
-      if (modalOpen || e.touches.length !== 1) return
+      if (modalOpen || inWeatherPopover(e.target) || e.touches.length !== 1) return
       touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
     }
     const onTouchEnd = (e: TouchEvent) => {
@@ -254,9 +316,19 @@ export function HomePage() {
         <span className="home__brand-name">{site?.site.nameEn ?? ''}</span>
       </header>
 
-      <div className="home__side" data-float="4">
+      <div className="home__side">
         <p className="home__hint">← → / 滚轮 切换页面 · 点击日月切换昼夜</p>
         <div className="home__controls">
+          <WeatherWidget
+            liveWeather={liveWeather}
+            loading={weatherLoading}
+            error={weatherError}
+            mode={weatherMode}
+            effectiveWeather={effectiveWeather}
+            onChangeMode={pickWeatherMode}
+            onRefresh={refreshWeather}
+          />
+
           <button
             type="button"
             className="home__theme-btn"
@@ -330,6 +402,9 @@ export function HomePage() {
           module={module}
           quality={quality}
           theme={theme}
+          weather={effectiveWeather}
+          thunder={effectiveThunder}
+          windSpeed={effectiveWindSpeed}
           onSelectModule={setModule}
           onToggleTheme={handleToggleTheme}
           onFallbackChange={setFallback}

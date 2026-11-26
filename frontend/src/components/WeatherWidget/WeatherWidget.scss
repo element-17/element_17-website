@@ -1,0 +1,434 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.weather-widget {
+  display: inline-flex;
+  align-items: center;
+
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-block-size: 30px;
+    padding: 4px 11px;
+    border: 1px solid var(--surface-border);
+    border-radius: 6px;
+    background: var(--pill-bg);
+    backdrop-filter: blur(8px);
+    font-family: $font-sans;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--ink-strong);
+    white-space: nowrap;
+    transition:
+      border-color 0.22s ease,
+      background-color 0.22s ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--accent-border);
+      background: var(--pill-hover-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    &.is-preview {
+      border-color: var(--accent-border);
+    }
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    color: var(--accent-text);
+  }
+
+  &__sep {
+    color: var(--ink-muted);
+  }
+
+  &__compact-temp {
+    display: none;
+  }
+
+  @include mobile {
+    &__trigger {
+      padding: 4px 8px;
+      gap: 4px;
+    }
+
+    &__place,
+    &__sep,
+    &__summary {
+      display: none;
+    }
+
+    &__compact-temp {
+      display: inline;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+// 非原生 Popover 环境的兜底隐藏（未开启时不渲染）
+@supports not selector(:popover-open) {
+  .weather-popover:not(.\:popover-open) {
+    display: none;
+  }
+}
+
+.weather-popover {
+  // 默认作为顶层弹出卡片的基础关闭态与离散动画配置
+  width: min(312px, calc(100vw - 24px));
+  padding: 14px 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--dialog-bg);
+  color: var(--ink-primary);
+  box-shadow: var(--dialog-shadow);
+  backdrop-filter: blur(14px);
+  font-family: $font-sans;
+  user-select: text;
+
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.22s;
+  transition-timing-function: ease-out;
+  // 独立声明，避免被 transition 简写重置或在旧浏览器中整行失效
+  transition-behavior: allow-discrete;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transform: translateY(-6px) scale(0.97);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0.1s;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--surface-divider);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--ink-strong);
+    letter-spacing: 0.04em;
+  }
+
+  &__campus {
+    margin-top: 2px;
+    font-size: 0.71875rem;
+    color: var(--ink-muted);
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__icon-btn {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    color: var(--ink-secondary);
+    transition:
+      color 0.2s ease,
+      border-color 0.2s ease,
+      background-color 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--ink-strong);
+      border-color: var(--surface-border);
+      background: var(--pill-hover-bg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: progress;
+    }
+
+    &.is-spinning svg {
+      @media (prefers-reduced-motion: no-preference) {
+        animation: weather-spin 0.9s linear infinite;
+      }
+    }
+  }
+
+  &__live {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--surface-divider);
+  }
+
+  &__live-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__live-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--pill-bg);
+    border: 1px solid var(--surface-border);
+    color: var(--accent-text);
+    flex: none;
+  }
+
+  &__live-reading {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__temp {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--ink-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__cond {
+    font-size: 0.78125rem;
+    color: var(--ink-secondary);
+  }
+
+  &__time {
+    margin-inline-start: auto;
+    font-size: 0.71875rem;
+    color: var(--ink-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0 0;
+  }
+
+  &__metric {
+    padding: 6px 8px;
+    border-radius: 7px;
+    background: var(--pill-bg);
+    border: 1px solid var(--surface-divider);
+
+    dt {
+      font-size: 0.6875rem;
+      color: var(--ink-muted);
+    }
+
+    dd {
+      margin: 2px 0 0;
+      font-size: 0.78125rem;
+      font-weight: 600;
+      color: var(--ink-strong);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__precip {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--ink-secondary);
+  }
+
+  &__loading {
+    font-size: 0.8125rem;
+    color: var(--ink-secondary);
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.78125rem;
+    color: var(--status-err);
+  }
+
+  &__retry {
+    flex: none;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--accent-border);
+    background: var(--accent-tint);
+    font-size: 0.75rem;
+    color: var(--ink-strong);
+
+    &:hover,
+    &:focus-visible {
+      background: var(--accent-tint-hover);
+    }
+  }
+
+  &__scene-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--surface-divider);
+  }
+
+  &__scene-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: #f5b35c;
+    box-shadow: 0 0 8px rgba(245, 179, 92, 0.75);
+
+    &[data-weather='cloudy'] {
+      background: #9fa9c8;
+      box-shadow: 0 0 8px rgba(159, 169, 200, 0.7);
+    }
+
+    &[data-weather='rain'] {
+      background: #6da7f2;
+      box-shadow: 0 0 8px rgba(109, 167, 242, 0.85);
+    }
+
+    &[data-weather='snow'] {
+      background: #e4f0ff;
+      box-shadow: 0 0 8px rgba(228, 240, 255, 0.9);
+    }
+  }
+
+  &__scene-text {
+    font-size: 0.78125rem;
+    color: var(--ink-secondary);
+    line-height: 1.45;
+  }
+
+  &__mode {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  &__mode-label {
+    font-size: 0.71875rem;
+    letter-spacing: 0.1em;
+    color: var(--ink-muted);
+  }
+
+  &__chips {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--surface-border);
+    background: var(--pill-bg);
+  }
+
+  &__chip {
+    min-block-size: 28px;
+    padding: 3px 4px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    transition:
+      color 0.2s ease,
+      border-color 0.2s ease,
+      background-color 0.2s ease;
+
+    &:hover {
+      color: var(--ink-strong);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    &.is-active {
+      color: var(--ink-strong);
+      border-color: var(--accent-border);
+      background: var(--accent-tint);
+      font-weight: 600;
+    }
+  }
+}
+
+// 顶层弹出入场与退场动画（顶层规则保持未嵌套，确保 @starting-style 正确解析）
+:is(.weather-popover:popover-open, .weather-popover.\:popover-open):where(:not([data-closing])) {
+  display: block;
+  opacity: 1;
+
+  @starting-style {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    transform: translateY(0) scale(1);
+
+    @starting-style {
+      transform: translateY(-6px) scale(0.97);
+    }
+  }
+}
+
+// 渐进增强：支持 CSS Anchor Positioning 时直接相对触发按钮定位并自动翻转避让视口边界
+@supports (position-area: block-end) {
+  .weather-popover[popover] {
+    inset: auto;
+    margin: 0;
+    margin-block-start: 8px;
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
+// 尚不支持 position-area 的浏览器（如 Firefox）：固定在右上角控件正下方，移动端靠顶居中
+@supports not (position-area: block-end) {
+  .weather-popover {
+    position: fixed;
+    inset-block-start: calc(4vh + 66px);
+    inset-inline-end: 4vw;
+    inset-inline-start: auto;
+    inset-block-end: auto;
+    margin: 0;
+    z-index: 30;
+
+    @include mobile {
+      inset-block-start: calc(4vh + 48px);
+      inset-inline-start: 12px;
+      inset-inline-end: 12px;
+      width: auto;
+    }
+  }
+}
+
+@keyframes weather-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

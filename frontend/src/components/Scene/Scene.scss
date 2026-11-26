@@ -202,6 +202,67 @@
     pointer-events: none;
   }
 
+  // 无 WebGL 兜底画面的纯 CSS 天气粒子层（仅在未开启减少动态效果时运动）
+  &__fallback-weather {
+    @include fill;
+    pointer-events: none;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -40% -20%;
+      opacity: 0;
+    }
+  }
+
+  &--fallback[data-weather='rain'] {
+    .scene__fallback-stars {
+      opacity: 0.12;
+    }
+
+    .scene__fallback-moon {
+      opacity: 0.35;
+    }
+
+    .scene__fallback-weather::before {
+      opacity: 0.45;
+      background-image: repeating-linear-gradient(
+        104deg,
+        transparent 0 26px,
+        rgba(196, 214, 248, 0.34) 26px 27.5px,
+        transparent 27.5px 62px
+      );
+      background-size: 90px 140px;
+
+      @media (prefers-reduced-motion: no-preference) {
+        animation: fallback-rain 0.85s linear infinite;
+      }
+    }
+  }
+
+  &--fallback[data-weather='snow'] {
+    .scene__fallback-stars {
+      opacity: 0.28;
+    }
+
+    .scene__fallback-weather::before {
+      opacity: 0.72;
+      background-image:
+        radial-gradient(2.5px 2.5px at 14% 18%, rgba(246, 250, 255, 0.92), transparent 100%),
+        radial-gradient(2px 2px at 36% 42%, rgba(240, 246, 255, 0.82), transparent 100%),
+        radial-gradient(3px 3px at 62% 24%, rgba(255, 255, 255, 0.9), transparent 100%),
+        radial-gradient(2px 2px at 84% 58%, rgba(236, 244, 255, 0.78), transparent 100%),
+        radial-gradient(2.5px 2.5px at 26% 78%, rgba(245, 250, 255, 0.85), transparent 100%),
+        radial-gradient(2px 2px at 72% 84%, rgba(240, 246, 255, 0.8), transparent 100%);
+      background-size: 220px 220px;
+
+      @media (prefers-reduced-motion: no-preference) {
+        animation: fallback-snow 7.5s linear infinite;
+      }
+    }
+  }
+
   &__fallback-note {
     position: absolute;
     left: 50%;
@@ -216,5 +277,23 @@
     text-align: center;
     color: $c-text-soft;
     text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+  }
+}
+
+@keyframes fallback-rain {
+  from {
+    transform: translate3d(0, -140px, 0);
+  }
+  to {
+    transform: translate3d(-34px, 0, 0);
+  }
+}
+
+@keyframes fallback-snow {
+  from {
+    transform: translate3d(0, -220px, 0);
+  }
+  to {
+    transform: translate3d(28px, 0, 0);
   }
 }

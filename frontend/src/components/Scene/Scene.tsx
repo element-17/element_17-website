@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ModuleId } from '../../config/modules'
 import type { QualityLevel } from '../../config/quality'
 import type { ThemeScheme } from '../../config/theme'
+import type { WeatherKind } from '../../config/weather'
 import { World } from '../../scene3d/World'
 import './Scene.scss'
 
@@ -9,6 +10,9 @@ interface Props {
   module: ModuleId
   quality: QualityLevel
   theme: ThemeScheme
+  weather: WeatherKind
+  thunder?: boolean
+  windSpeed?: number
   /** 首帧渲染完成后回调 */
   onReady?: () => void
   /** 点击 3D 营地陈设时切到对应章节 */
@@ -33,7 +37,18 @@ const supportsWebGL = (): boolean => {
  * 场景：一块 WebGL 画布（真 3D 世界）+ 叠在上面的暗角。
  * WebGL 不可用时退化为一张纯 CSS 的兜底画面，自动跟随黎明 / 黑夜主题。
  */
-export function Scene({ module, quality, theme, onReady, onSelectModule, onToggleTheme, onFallbackChange }: Props) {
+export function Scene({
+  module,
+  quality,
+  theme,
+  weather,
+  thunder,
+  windSpeed,
+  onReady,
+  onSelectModule,
+  onToggleTheme,
+  onFallbackChange,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const worldRef = useRef<World | null>(null)
   const onSelectRef = useRef(onSelectModule)
@@ -67,6 +82,7 @@ export function Scene({ module, quality, theme, onReady, onSelectModule, onToggl
         quality,
         module,
         theme,
+        weather,
         onReady,
         (id) => onSelectRef.current?.(id),
         () => onToggleThemeRef.current?.(),
@@ -82,7 +98,7 @@ export function Scene({ module, quality, theme, onReady, onSelectModule, onToggl
       world.dispose()
       worldRef.current = null
     }
-    // 画布只需创建一次；quality / module / theme 的后续变化由下面的 effect 接管
+    // 画布只需创建一次；quality / module / theme / weather 的后续变化由下面的 effect 接管
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -98,8 +114,16 @@ export function Scene({ module, quality, theme, onReady, onSelectModule, onToggl
     worldRef.current?.setTheme(theme)
   }, [theme])
 
+  useEffect(() => {
+    worldRef.current?.setWeather(weather, { thunder, windSpeed })
+  }, [weather, thunder, windSpeed])
+
   return (
-    <div className={`scene${fallback ? ' scene--fallback' : ''}`} aria-hidden={!fallback}>
+    <div
+      className={`scene${fallback ? ' scene--fallback' : ''}`}
+      data-weather={weather}
+      aria-hidden={!fallback}
+    >
       <canvas ref={canvasRef} className="scene__canvas" />
       {fallback && (
         <>
@@ -116,6 +140,7 @@ export function Scene({ module, quality, theme, onReady, onSelectModule, onToggl
           <div className="scene__fallback-river" />
           <div className="scene__fallback-lights" />
           <div className="scene__fallback-shore" />
+          <div className="scene__fallback-weather" aria-hidden="true" />
           <p className="scene__fallback-note">当前环境不支持 WebGL · 文字与导航不受影响</p>
         </>
       )}

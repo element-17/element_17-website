@@ -14,7 +14,7 @@ export interface CelestialTarget {
   radius: number
 }
 
-/** 昼夜天穹：黑夜（暗紫暮色 + 星河 + 明月）与黎明（清朗破晓蓝 + 暖金晨霞 + 朝阳）平滑过渡 */
+/** 昼夜与气象天穹：黑夜 / 黎明 × 晴 / 阴 / 雨 / 雪平滑融合 */
 export class StarryBackground {
   readonly group = new THREE.Group()
   private starMaterial: THREE.ShaderMaterial
@@ -27,6 +27,9 @@ export class StarryBackground {
   private moonBasePos: THREE.Vector3
   private sunBasePos: THREE.Vector3
   private dawn = 0
+  private cloudiness = 0.14
+  private rain = 0
+  private snow = 0
 
   constructor(
     moonDir: THREE.Vector3,
@@ -35,7 +38,7 @@ export class StarryBackground {
     dawnSunDir: THREE.Vector3,
     horizon: THREE.ColorRepresentation,
   ) {
-    // ---------- 天穹：黑夜与黎明通过 uDawn (0 ~ 1) 无缝融合 ----------
+    // ---------- 天穹：黑夜与黎明通过 uDawn (0 ~ 1) 与气象参数无缝融合 ----------
     this.domeMaterial = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
@@ -53,6 +56,10 @@ export class StarryBackground {
         uDawn: { value: 0 },
         uTime: { value: 0 },
         uLite: { value: 0 },
+        uCloudiness: { value: 0.14 },
+        uRain: { value: 0 },
+        uSnow: { value: 0 },
+        uThunder: { value: 0 },
       },
       vertexShader: /* glsl */ `
         varying vec3 vDir;
@@ -74,6 +81,10 @@ export class StarryBackground {
         uniform float uDawn;
         uniform float uTime;
         uniform float uLite;
+        uniform float uCloudiness;
+        uniform float uRain;
+        uniform float uSnow;
+        uniform float uThunder;
         varying vec3 vDir;
         ${NOISE_GLSL}
         void main() {
@@ -85,18 +96,25 @@ export class StarryBackground {
           nightCol = mix(nightCol, uUpper, smoothstep(0.08, 0.4, h));
           nightCol = mix(nightCol, uZenith, smoothstep(0.3, 0.85, h));
 
-          // 残霞：只在日落方位贴着地平线的一条
+          // 残霞：晴时浓郁，阴雨雪时减弱
+          float clearSky = 1.0 - clamp(uCloudiness * 0.82, 0.0, 0.85);
           float az = max(dot(normalize(d.xz + 1e-5), uSunDir), 0.0);
           float sunset = pow(az, 3.0);
-          nightCol += uGlow * sunset * exp(-h * 8.0) * 0.55;
-          nightCol += uGlowCore * pow(az, 12.0) * exp(-h * 18.0) * 0.6;
+          nightCol += uGlow * sunset * exp(-h * 8.0) * 0.55 * clearSky;
+          nightCol += uGlowCore * pow(az, 12.0) * exp(-h * 18.0) * 0.6 * clearSky;
 
           // 月亮周围的大气散射
           float m = max(dot(d, uMoonDir), 0.0);
           float moonHalo = pow(m, 60.0) * 0.32 + pow(m, 10.0) * 0.06;
-          nightCol += vec3(0.42, 0.38, 0.78) * moonHalo;
+          nightCol += vec3(0.42, 0.38, 0.78) * moonHalo * (1.0 - uRain * 0.68);
 
-          // 黎明天色（沿用初版暖粉紫晨霞配色，微压 10% 亮度消除太阳附近过曝）
+          // 雨夜转冷青灰、雪夜带一层通透寒蓝
+          vec3 rainNightSky = mix(vec3(0.10, 0.12, 0.20), vec3(0.03, 0.04, 0.09), smoothstep(0.0, 0.65, h));
+          vec3 snowNightSky = mix(vec3(0.22, 0.25, 0.38), vec3(0.08, 0.10, 0.20), smoothstep(0.0, 0.7, h));
+          nightCol = mix(nightCol, rainNightSky, uRain * 0.78);
+          nightCol = mix(nightCol, snowNightSky, uSnow * 0.72);
+
+          // 黎明天色
           vec3 dawnHorizon = vec3(0.88, 0.68, 0.54);
           vec3 dawnMid = vec3(0.70, 0.54, 0.65);
           vec3 dawnUpper = vec3(0.30, 0.46, 0.72);
@@ -105,38 +123,54 @@ export class StarryBackground {
           dawnCol = mix(dawnCol, dawnUpper, smoothstep(0.10, 0.38, h));
           dawnCol = mix(dawnCol, dawnZenith, smoothstep(0.30, 0.82, h));
 
-          // 朝阳晨晖：保留初版暖金霞光，克制中心白斑
+          // 朝阳晨晖
           float s = max(dot(d, uDawnSunDir), 0.0);
           float sunAz = max(dot(normalize(d.xz + 1e-5), normalize(uDawnSunDir.xz + 1e-5)), 0.0);
-          dawnCol += vec3(0.92, 0.50, 0.34) * pow(sunAz, 2.4) * exp(-h * 5.8) * 0.30;
-          dawnCol += vec3(0.96, 0.76, 0.48) * (pow(s, 56.0) * 0.40 + pow(s, 9.0) * 0.12);
+          dawnCol += vec3(0.92, 0.50, 0.34) * pow(sunAz, 2.4) * exp(-h * 5.8) * 0.30 * clearSky;
+          dawnCol += vec3(0.96, 0.76, 0.48) * (pow(s, 56.0) * 0.40 + pow(s, 9.0) * 0.12) * (1.0 - uRain * 0.75);
+
+          // 雨天黎明转烟雨银灰、雪天黎明转凛冽霜白
+          vec3 rainDawnSky = mix(vec3(0.56, 0.61, 0.68), vec3(0.34, 0.40, 0.50), smoothstep(0.0, 0.75, h));
+          vec3 snowDawnSky = mix(vec3(0.82, 0.86, 0.92), vec3(0.58, 0.67, 0.80), smoothstep(0.0, 0.78, h));
+          dawnCol = mix(dawnCol, rainDawnSky, uRain * 0.82);
+          dawnCol = mix(dawnCol, snowDawnSky, uSnow * 0.75);
 
           vec3 col = mix(nightCol, dawnCol, uDawn);
 
-          // 云层：低画质只跑 1 次噪声，极大幅度压缩全屏片元开销
+          // 云层：云量随天气动态增厚，雨雪时云速稍快
           vec2 uv = d.xz / (h + 0.16);
+          float drift = uTime * (0.004 + uRain * 0.007 + uSnow * 0.003);
           float wide = uLite > 0.5
-            ? vnoise(uv * vec2(0.65, 1.25) + vec2(uTime * 0.004, 0.0))
-            : fbm(uv * vec2(0.55, 1.1) + vec2(uTime * 0.004, 0.0));
+            ? vnoise(uv * vec2(0.65, 1.25) + vec2(drift, 0.0))
+            : fbm(uv * vec2(0.55, 1.1) + vec2(drift, 0.0));
           float fine = uLite > 0.5
             ? 0.5 + 0.5 * sin(uv.x * 2.1 + uv.y * 1.4 + uTime * 0.02)
-            : fbm(uv * 2.6 + vec2(uTime * 0.007, 3.7));
-          float cover = smoothstep(0.46, 0.74, wide * 0.72 + fine * 0.28);
-          cover *= smoothstep(0.015, 0.09, h) * (1.0 - smoothstep(0.45, 0.9, h) * 0.7);
+            : fbm(uv * 2.6 + vec2(drift * 1.6, 3.7));
+          float edgeLo = mix(0.56, 0.22, uCloudiness);
+          float edgeHi = mix(0.82, 0.56, uCloudiness);
+          float cover = smoothstep(edgeLo, edgeHi, wide * 0.72 + fine * 0.28);
+          cover *= smoothstep(0.015, 0.09, h) * (1.0 - smoothstep(0.45, 0.92, h) * mix(0.7, 0.22, uCloudiness));
 
           // 暗夜云体
           vec3 nightCloud = vec3(0.035, 0.024, 0.07);
-          nightCloud += uGlow * sunset * exp(-h * 4.0) * (0.5 + fine * 0.7);
-          nightCloud += uGlowCore * pow(az, 8.0) * exp(-h * 9.0) * 0.45;
-          nightCloud += vec3(0.30, 0.28, 0.55) * pow(m, 5.0) * 0.55 * fine;
+          nightCloud = mix(nightCloud, vec3(0.06, 0.075, 0.12), uRain);
+          nightCloud = mix(nightCloud, vec3(0.18, 0.22, 0.34), uSnow);
+          nightCloud += uGlow * sunset * exp(-h * 4.0) * (0.5 + fine * 0.7) * clearSky;
+          nightCloud += uGlowCore * pow(az, 8.0) * exp(-h * 9.0) * 0.45 * clearSky;
+          nightCloud += vec3(0.30, 0.28, 0.55) * pow(m, 5.0) * 0.55 * fine * (1.0 - uRain * 0.65);
 
-          // 黎明朝霞云体：柔粉白金晨云 + 朝阳暖边
+          // 黎明朝霞云体
           vec3 dawnCloud = vec3(0.78, 0.71, 0.74);
-          dawnCloud += vec3(0.24, 0.14, 0.08) * (0.4 + fine * 0.6) * pow(sunAz, 1.5);
-          dawnCloud += vec3(0.26, 0.20, 0.12) * pow(s, 4.5) * 0.55;
+          dawnCloud = mix(dawnCloud, vec3(0.42, 0.47, 0.55), uRain);
+          dawnCloud = mix(dawnCloud, vec3(0.84, 0.88, 0.94), uSnow);
+          dawnCloud += vec3(0.24, 0.14, 0.08) * (0.4 + fine * 0.6) * pow(sunAz, 1.5) * clearSky;
+          dawnCloud += vec3(0.26, 0.20, 0.12) * pow(s, 4.5) * 0.55 * clearSky;
 
           vec3 cloud = mix(nightCloud, dawnCloud, uDawn);
-          col = mix(col, cloud, cover * mix(0.82, 0.56, uDawn));
+          cloud += vec3(0.42, 0.50, 0.72) * uThunder * (0.35 + 0.65 * fine);
+
+          float cloudMix = cover * mix(0.82, 0.62, uDawn) * mix(0.75, 1.0, uCloudiness);
+          col = mix(col, cloud, clamp(cloudMix, 0.0, 0.94));
 
           gl_FragColor = vec4(col, 1.0);
           #include <tonemapping_fragment>
@@ -311,23 +345,40 @@ export class StarryBackground {
   setDawn(dawn: number) {
     this.dawn = dawn
     this.domeMaterial.uniforms.uDawn.value = dawn
+    this.syncCelestials()
+  }
 
-    const starOpacity = Math.max(0, 1 - dawn * 2.2)
+  /** 同步云量、雨雪与远雷闪光 */
+  setWeather(cloudiness: number, rain: number, snow: number, thunder = 0) {
+    this.cloudiness = cloudiness
+    this.rain = rain
+    this.snow = snow
+    this.domeMaterial.uniforms.uCloudiness.value = cloudiness
+    this.domeMaterial.uniforms.uRain.value = rain
+    this.domeMaterial.uniforms.uSnow.value = snow
+    this.domeMaterial.uniforms.uThunder.value = thunder
+    this.syncCelestials()
+  }
+
+  private syncCelestials() {
+    const dawn = this.dawn
+    const veil = 1 - THREE.MathUtils.clamp(this.cloudiness * 0.65 + this.rain * 0.22 + this.snow * 0.14, 0, 0.78)
+    const starOpacity = Math.max(0, 1 - dawn * 2.2) * Math.max(0, 1 - this.cloudiness * 0.92)
     this.starMaterial.uniforms.uOpacity.value = starOpacity
     this.stars.visible = starOpacity > 0.01
 
-    // 月亮淡出并轻微西沉
-    const moonAlpha = THREE.MathUtils.clamp(1 - dawn * 1.75, 0, 1)
+    // 月亮淡出并轻微西沉（阴雨雪天透出朦胧月晕，仍保留可辨识度与点击交互）
+    const moonAlpha = THREE.MathUtils.clamp(1 - dawn * 1.75, 0, 1) * veil
     this.moonSprite.visible = moonAlpha > 0.01
     this.moonGlow.visible = moonAlpha > 0.01
     this.moonSprite.material.opacity = moonAlpha
-    this.moonGlow.material.opacity = moonAlpha
+    this.moonGlow.material.opacity = moonAlpha * (1 + this.snow * 0.25)
     const moonOffsetY = -dawn * 26
     this.moonSprite.position.set(this.moonBasePos.x, this.moonBasePos.y + moonOffsetY, this.moonBasePos.z)
     this.moonGlow.position.copy(this.moonSprite.position)
 
     // 朝阳自地平线柔和升起并点亮
-    const sunAlpha = THREE.MathUtils.clamp((dawn - 0.15) * 1.45, 0, 1)
+    const sunAlpha = THREE.MathUtils.clamp((dawn - 0.15) * 1.45, 0, 1) * veil
     this.sunSprite.visible = sunAlpha > 0.01
     this.sunGlow.visible = sunAlpha > 0.01
     this.sunSprite.material.opacity = sunAlpha

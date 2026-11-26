@@ -150,6 +150,8 @@ const fragmentShader = /* glsl */ `
   uniform float uUseReflector;
   uniform float uLite;
   uniform float uDawn;
+  uniform float uRain;
+  uniform float uSnow;
   varying vec4 vUv;
   varying vec3 vWorld;
   ${NOISE_GLSL}
@@ -169,6 +171,27 @@ const fragmentShader = /* glsl */ `
     return h;
   }
 
+  // 雨滴击打水面产生的程序化同心涟漪（两层错开网格，近中景清晰自然）
+  float rainRipples(vec2 p, float t) {
+    float acc = 0.0;
+    for (int k = 0; k < 2; k++) {
+      float scale = k == 0 ? 1.15 : 1.78;
+      vec2 q = p * scale + vec2(float(k) * 7.3, float(k) * 4.1);
+      vec2 cell = floor(q);
+      vec2 f = fract(q);
+      float rnd = hash21(cell);
+      float rnd2 = hash21(cell + vec2(17.1, 31.7));
+      float cyc = fract(t * (0.95 + 0.55 * rnd) + rnd2);
+      vec2 center = vec2(0.22 + 0.56 * rnd, 0.22 + 0.56 * rnd2);
+      float d = length(f - center);
+      float rad = cyc * 0.44;
+      float ring = smoothstep(0.055, 0.0, abs(d - rad));
+      float fade = (1.0 - cyc) * smoothstep(0.0, 0.08, cyc);
+      acc += ring * fade;
+    }
+    return clamp(acc, 0.0, 1.0);
+  }
+
   // 低画质程序化倒影：不跑二次场景渲染，直接按反射方向合成黑夜暮色 / 黎明晨光水影
   vec3 analyticReflection(vec3 R, vec2 grad, vec3 moonDir) {
     float h = max(R.y, 0.0);
@@ -176,17 +199,19 @@ const fragmentShader = /* glsl */ `
     vec3 nightSky = mix(vec3(0.085, 0.048, 0.155), vec3(0.042, 0.025, 0.105), smoothstep(0.0, 0.22, h));
     nightSky = mix(nightSky, vec3(0.015, 0.011, 0.045), smoothstep(0.18, 0.65, h));
     float az = max(dot(normalize(R.xz + 1e-5), uSunDir), 0.0);
-    nightSky += vec3(0.65, 0.22, 0.34) * pow(az, 3.0) * exp(-h * 7.5) * 0.42;
-    nightSky += vec3(0.95, 0.50, 0.28) * pow(az, 10.0) * exp(-h * 15.0) * 0.35;
+    nightSky += vec3(0.65, 0.22, 0.34) * pow(az, 3.0) * exp(-h * 7.5) * 0.42 * (1.0 - uRain * 0.7);
+    nightSky += vec3(0.95, 0.50, 0.28) * pow(az, 10.0) * exp(-h * 15.0) * 0.35 * (1.0 - uRain * 0.7);
     float mh = max(dot(R, moonDir), 0.0);
-    nightSky += vec3(0.36, 0.32, 0.70) * (pow(mh, 44.0) * 0.42 + pow(mh, 10.0) * 0.07);
+    nightSky += vec3(0.36, 0.32, 0.70) * (pow(mh, 44.0) * 0.42 + pow(mh, 10.0) * 0.07) * (1.0 - uRain * 0.65);
 
-    // 黎明晨光水面反射：暖杏霞光映水 + 淡蓝紫天影
+    // 黎明晨光水面反射
     vec3 dawnSky = mix(vec3(0.84, 0.68, 0.58), vec3(0.50, 0.62, 0.78), smoothstep(0.0, 0.26, h));
     dawnSky = mix(dawnSky, vec3(0.26, 0.44, 0.66), smoothstep(0.22, 0.7, h));
-    dawnSky += vec3(0.96, 0.80, 0.54) * (pow(mh, 38.0) * 0.44 + pow(mh, 9.0) * 0.14);
+    dawnSky += vec3(0.96, 0.80, 0.54) * (pow(mh, 38.0) * 0.44 + pow(mh, 9.0) * 0.14) * (1.0 - uRain * 0.75);
 
     vec3 sky = mix(nightSky, dawnSky, uDawn);
+    sky = mix(sky, mix(vec3(0.07, 0.09, 0.15), vec3(0.42, 0.48, 0.56), uDawn), uRain * 0.55);
+    sky = mix(sky, mix(vec3(0.14, 0.17, 0.28), vec3(0.68, 0.74, 0.84), uDawn), uSnow * 0.45);
 
     // 远山与对岸剪影压暗贴近水面的反射带
     float ridge = smoothstep(0.012, 0.095, h + 0.02 * sin(vWorld.x * 0.11));
@@ -194,7 +219,7 @@ const fragmentShader = /* glsl */ `
     // 波纹横切出的明暗水带
     float band = 0.72 + 0.28 * sin(vWorld.z * 2.4 + grad.y * 2.2 - uTime * 1.1);
     sky *= band;
-    // 船头灯与对岸窗灯/篝火拖出的细碎暖影（黎明柔和淡化）
+    // 船头灯与对岸窗灯/篝火拖出的细碎暖影
     float px = vWorld.x + grad.x * 0.35;
     float shimmer = pow(0.5 + 0.5 * sin(vWorld.z * 4.2 + grad.y * 4.5 - uTime * 2.4), 2.0);
     float lights =
@@ -225,7 +250,6 @@ const fragmentShader = /* glsl */ `
     vec2 p = vWorld.xz;
     vec2 grad;
     if (uLite > 0.5) {
-      // 低画质直接用解析正弦波算坡度：0 次噪声采样即可得到自然流动的水纹
       float a1 = p.x * 0.42 + p.y * 1.65 - uTime * 0.85;
       float a2 = p.x * 0.95 - p.y * 2.85 - uTime * 1.35;
       grad = vec2(
@@ -233,7 +257,6 @@ const fragmentShader = /* glsl */ `
         0.55 * cos(a1) * 1.65 - 0.35 * cos(a2) * 2.85
       ) * calm * 0.55;
     } else {
-      // 中高画质：多频 fbm + 风皱
       float detail = 1.0 - smoothstep(25.0, 90.0, dist);
       float e = 0.12 + dist * 0.004;
       float h0 = waveHeight(p, detail);
@@ -242,12 +265,14 @@ const fragmentShader = /* glsl */ `
       grad *= calm * gust;
     }
 
+    // 雨天水波更碎、雪天水面稍静
+    grad *= (1.0 + uRain * 0.45 - uSnow * 0.22);
+
     vec3 n = normalize(vec3(-grad.x * 0.03, 1.0, -grad.y * 0.03));
     vec3 moonDir = normalize(uMoonPos - vWorld);
 
     vec3 refl;
     if (uUseReflector > 0.5) {
-      // 真实平面倒影：掠射角下，沿视线方向的坡度把倒影上下拉成长条，横向几乎不动
       vec2 viewDir = normalize(vWorld.xz - cameraPosition.xz);
       float along = dot(grad, viewDir);
       float across = dot(grad, vec2(-viewDir.y, viewDir.x));
@@ -261,20 +286,34 @@ const fragmentShader = /* glsl */ `
     vec3 body = mix(uShallow, color, smoothstep(0.0, 0.9, depth));
     vec3 col = mix(body, refl, fresnel);
 
-    // 月光碎金：只有恰好把月亮反射进眼里的那些波面才亮
+    // 月光/朝阳碎金（阴雨时大幅收敛）
     vec3 ns = normalize(vec3(-grad.x * 0.085, 1.0, -grad.y * 0.085));
     float md = max(dot(reflect(-V, ns), moonDir), 0.0);
     float sparkle = uLite > 0.5
       ? 0.45 + 0.55 * sin(p.x * 3.2 + p.y * 9.0 - uTime * 2.2)
       : 0.3 + 0.7 * smoothstep(0.32, 0.7, vnoise(p * vec2(4.0, 11.0) - vec2(uTime * 1.1, uTime * 0.35)));
-    col += uMoonColor * (pow(md, 600.0) * 1.7 * sparkle + pow(md, 90.0) * 0.045) * calm;
+    col += uMoonColor * (pow(md, 600.0) * 1.7 * sparkle + pow(md, 90.0) * 0.045) * calm * (1.0 - uRain * 0.72);
 
-    // 水线上一道断断续续的浮沫
+    // 雨滴水面涟漪环（近中景可见）
+    if (uRain > 0.02) {
+      float nearFade = 1.0 - smoothstep(10.0, 38.0, dist);
+      float rip = rainRipples(p, uTime) * nearFade * uRain;
+      vec3 ripCol = mix(vec3(0.58, 0.66, 0.86), vec3(0.86, 0.91, 0.97), uDawn);
+      col = mix(col, ripCol, rip * 0.42);
+    }
+
+    // 水线上一道断断续续的浮沫；雪天沿浅滩覆一层薄霜冰边
     float foamNoise = uLite > 0.5
       ? 0.5 + 0.5 * sin(p.x * 2.4 + uTime * 0.4)
       : vnoise(p * 2.6 + vec2(uTime * 0.25, 0.0));
     float foam = (1.0 - smoothstep(0.0, 0.05, depth)) * (0.35 + 0.65 * foamNoise);
     col = mix(col, uFoam, foam * 0.3);
+
+    if (uSnow > 0.02) {
+      float iceRim = (1.0 - smoothstep(0.0, 0.16, depth)) * (0.45 + 0.55 * foamNoise) * uSnow;
+      vec3 iceCol = mix(vec3(0.64, 0.72, 0.88), vec3(0.92, 0.96, 1.0), uDawn);
+      col = mix(col, iceCol, iceRim * 0.58);
+    }
 
     col = mix(col, uFogColor, 1.0 - exp(-pow(dist * uFogDensity, 2.0)));
 
@@ -294,8 +333,14 @@ export class River {
   private forceNext = true
   private lastCamPos = new THREE.Vector3(Infinity, Infinity, Infinity)
   private lastDawn = -1
+  private lastRain = -1
+  private lastSnow = -1
   private nightDeep = new THREE.Color(0x0a0818)
   private dawnDeep = new THREE.Color(0x324e70)
+  private rainNightDeep = new THREE.Color(0x0b101d)
+  private rainDawnDeep = new THREE.Color(0x3d4b5e)
+  private snowNightDeep = new THREE.Color(0x11182c)
+  private snowDawnDeep = new THREE.Color(0x4c627e)
   private nightShallow = new THREE.Color(0x231c3a)
   private dawnShallow = new THREE.Color(0x597691)
   private nightFoam = new THREE.Color(0x8f84b8)
@@ -303,6 +348,7 @@ export class River {
   private nightSparkle = new THREE.Color(0xd9d2ff)
   private dawnSparkle = new THREE.Color(0xffdfa8)
   private nightMoonPos: THREE.Vector3
+  private tmpColor = new THREE.Color()
 
   constructor(
     moonPos: THREE.Vector3,
@@ -312,11 +358,9 @@ export class River {
   ) {
     this.nightMoonPos = moonPos.clone()
     this.mesh = new Reflector(new THREE.PlaneGeometry(1300, 1300), {
-      // Reflector 的 color 在这里当作深水的底色
       color: 0x0a0818,
       textureWidth: 512,
       textureHeight: 512,
-      // 倒影本来就被波纹打散，不需要多重采样
       multisample: 0,
       shader: {
         name: 'RiverShader',
@@ -335,6 +379,8 @@ export class River {
           uUseReflector: { value: 1 },
           uLite: { value: 0 },
           uDawn: { value: 0 },
+          uRain: { value: 0 },
+          uSnow: { value: 0 },
         },
         vertexShader,
         fragmentShader,
@@ -343,11 +389,9 @@ export class River {
     this.mesh.rotation.x = -Math.PI / 2
     this.mesh.position.set(0, WATER_Y, -20)
     this.material = this.mesh.material as THREE.ShaderMaterial
-    // 水线处淡出，露出下面的湿泥滩；排在天空之后、雾团与火光之前画
     this.material.transparent = true
     this.mesh.renderOrder = -0.5
 
-    // 包装 Reflector 的 onBeforeRender：低画质跳过二次渲染，中画质屏蔽细节层并静止时隔帧刷新
     const baseBeforeRender = this.mesh.onBeforeRender
     this.mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
       if (!this.useReflector) return
@@ -380,14 +424,36 @@ export class River {
     this.forceNext = true
   }
 
-  setDawn(dawn: number, dawnSunPos: THREE.Vector3, fogColor: THREE.Color, fogDensity: number) {
-    if (Math.abs(dawn - this.lastDawn) > 1e-4) {
+  setAtmosphere(
+    dawn: number,
+    dawnSunPos: THREE.Vector3,
+    fogColor: THREE.Color,
+    fogDensity: number,
+    rain = 0,
+    snow = 0,
+  ) {
+    if (
+      Math.abs(dawn - this.lastDawn) > 1e-4 ||
+      Math.abs(rain - this.lastRain) > 1e-3 ||
+      Math.abs(snow - this.lastSnow) > 1e-3
+    ) {
       this.lastDawn = dawn
+      this.lastRain = rain
+      this.lastSnow = snow
       this.forceNext = true
     }
     const u = this.material.uniforms
     u.uDawn.value = dawn
-    ;(u.color.value as THREE.Color).copy(this.nightDeep).lerp(this.dawnDeep, dawn)
+    u.uRain.value = rain
+    u.uSnow.value = snow
+
+    const deep = u.color.value as THREE.Color
+    deep.copy(this.nightDeep).lerp(this.dawnDeep, dawn)
+    this.tmpColor.copy(this.rainNightDeep).lerp(this.rainDawnDeep, dawn)
+    deep.lerp(this.tmpColor, rain * 0.75)
+    this.tmpColor.copy(this.snowNightDeep).lerp(this.snowDawnDeep, dawn)
+    deep.lerp(this.tmpColor, snow * 0.7)
+
     ;(u.uShallow.value as THREE.Color).copy(this.nightShallow).lerp(this.dawnShallow, dawn)
     ;(u.uFoam.value as THREE.Color).copy(this.nightFoam).lerp(this.dawnFoam, dawn)
     ;(u.uMoonColor.value as THREE.Color).copy(this.nightSparkle).lerp(this.dawnSparkle, dawn)

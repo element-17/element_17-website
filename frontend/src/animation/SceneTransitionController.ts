@@ -2,6 +2,7 @@ import type { PerspectiveCamera } from 'three'
 import { Vector3 } from 'three'
 import type { ModuleId } from '../config/modules'
 import { shotFor, type Shot } from '../config/shots'
+import type { WeatherKind } from '../config/weather'
 
 const MOBILE = 768
 
@@ -28,10 +29,10 @@ interface Floater {
 }
 
 /**
- * 营地内的镜头控制器
- * - 五个模块都在同一堆篝火旁：切换只是一次 1~1.6s 的推拉摇，位置与注视点同时补间，途中轻微抬高
- * - 鼠标叠加轻微视差（沿相机自身的左右 / 上下方向，强度随机位远近与 par 缩放）
- * - 补间由 update()（渲染循环）按真实时间驱动：渲染循环冻结时补间暂停，恢复后直接落位
+ * 营地与河畔的镜头控制器
+ * - 五个模块与不同天气的机位统一做平滑推拉摇转场；
+ * - 鼠标叠加轻微视差（沿相机自身的左右 / 上下方向，强度随机位远近与 par 缩放）；
+ * - 补间由 update()（渲染循环）按真实时间驱动：渲染循环冻结时补间暂停，恢复后直接落位。
  */
 export class SceneTransitionController {
   readonly state: Shot = { ...shotFor('home', false) }
@@ -42,6 +43,7 @@ export class SceneTransitionController {
   progress = 1
 
   private camera: PerspectiveCamera
+  private weather: WeatherKind
   private transition: Transition | null = null
   private narrow = false
   private reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -55,8 +57,9 @@ export class SceneTransitionController {
   private right = new Vector3()
   private up = new Vector3()
 
-  constructor(camera: PerspectiveCamera, uiRoot: HTMLElement | null) {
+  constructor(camera: PerspectiveCamera, uiRoot: HTMLElement | null, initialWeather: WeatherKind = 'clear') {
     this.camera = camera
+    this.weather = initialWeather
     this.narrow = window.innerWidth < MOBILE
     if (uiRoot) {
       const qa = (sel: string) => Array.from(uiRoot.querySelectorAll<HTMLElement>(sel))
@@ -70,25 +73,17 @@ export class SceneTransitionController {
     if (id === this.current) return
     const first = this.current === null
     this.current = id
-    const to = shotFor(id, this.narrow)
-    const s = this.state
+    const to = shotFor(id, this.narrow, this.weather)
+    this.startTransition(to, first)
+  }
 
-    if (first) {
-      Object.assign(s, to)
-      this.transition = null
-      this.progress = 1
-      return
-    }
-
-    const d = Math.hypot(to.px - s.px, to.py - s.py, to.pz - s.pz)
-    this.transition = {
-      from: { ...s },
-      to: { ...to },
-      start: performance.now(),
-      duration: this.reduceMotion ? 0.4 : Math.min(1.65, Math.max(1.05, 0.95 + d * 0.12)),
-      arc: this.reduceMotion ? 0 : Math.min(0.45, d * 0.07),
-    }
-    this.progress = 0
+  /** 天气变化时，如果当前模块机位有联动（如雨天归处移至河畔垂钓），平滑过渡过去 */
+  setWeather(weather: WeatherKind, immediate = false) {
+    if (weather === this.weather) return
+    this.weather = weather
+    if (!this.current) return
+    const to = shotFor(this.current, this.narrow, this.weather)
+    this.startTransition(to, immediate)
   }
 
   /** 仅供自动化测试：立刻结束当前转场，跳到目标机位 */
@@ -110,7 +105,7 @@ export class SceneTransitionController {
     if (narrow !== this.narrow) {
       this.narrow = narrow
       if (this.current) {
-        const to = shotFor(this.current, narrow)
+        const to = shotFor(this.current, narrow, this.weather)
         if (this.transition) this.transition.to = { ...to }
         else Object.assign(this.state, to)
       }
@@ -148,6 +143,25 @@ export class SceneTransitionController {
   destroy() {
     this.transition = null
     window.removeEventListener('pointermove', this.onPointerMove)
+  }
+
+  private startTransition(to: Shot, snap: boolean) {
+    const s = this.state
+    if (snap) {
+      Object.assign(s, to)
+      this.transition = null
+      this.progress = 1
+      return
+    }
+    const d = Math.hypot(to.px - s.px, to.py - s.py, to.pz - s.pz)
+    this.transition = {
+      from: { ...s },
+      to: { ...to },
+      start: performance.now(),
+      duration: this.reduceMotion ? 0.4 : Math.min(1.85, Math.max(0.85, 0.85 + d * 0.11)),
+      arc: this.reduceMotion ? 0 : Math.min(0.55, d * 0.06),
+    }
+    this.progress = 0
   }
 
   /** 按真实时间推进转场；渲染循环恢复后补间一步到位，不会停留在中间帧 */

@@ -24,6 +24,10 @@ export interface QualityPreset {
   reflectionLite: boolean
   /** 简化水面与天空云层的噪声层数 */
   liteShaders: boolean
+  /** 雨滴丝数量 */
+  rainDrops: number
+  /** 雪花粒子数量 */
+  snowFlakes: number
 }
 
 export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
@@ -39,6 +43,8 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
     reflection: 0,
     reflectionLite: true,
     liteShaders: true,
+    rainDrops: 360,
+    snowFlakes: 280,
   },
   mid: {
     pixelRatio: 1.25,
@@ -52,6 +58,8 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
     reflection: 0.35,
     reflectionLite: true,
     liteShaders: false,
+    rainDrops: 950,
+    snowFlakes: 780,
   },
   high: {
     pixelRatio: 1.75,
@@ -65,6 +73,8 @@ export const QUALITY_PRESETS: Record<QualityLevel, QualityPreset> = {
     reflection: 0.6,
     reflectionLite: false,
     liteShaders: false,
+    rainDrops: 1800,
+    snowFlakes: 1500,
   },
 }
 
