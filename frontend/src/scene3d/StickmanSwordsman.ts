@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import gsap from 'gsap'
 import type { ModuleId } from '../config/modules'
-import { FISHING_POSE, HOME_POSE, JOINTS, SNOW_WARM_POSE, type Joint, type Pose } from '../config/poses'
+import { FISHING_POSE, HOME_POSE, JOINTS, SNOW_UMBRELLA_POSE, type Joint, type Pose } from '../config/poses'
 import { CAMP } from '../config/shots'
 import type { WeatherKind } from '../config/weather'
 import { WATER_Y, groundHeight } from './River'
@@ -119,7 +119,7 @@ class Ribbon {
  * 随天气自动切换活动：
  * - 晴天/阴雾：营地倚石抱剑守炉；
  * - 雨天：移步河畔青石执竿垂钓（竹钓竿 + 鱼线 + 浮漂 + 咬钩水纹），长剑插立身旁；
- * - 下雪：靠近旺燃篝火蹲坐烤火，斗笠积雪、口呵白气。
+ * - 下雪：挺身立于飞雪，右手撑覆雪红油纸伞、左手垂提长剑，口呵寒雾。
  */
 export class StickmanSwordsman {
   readonly group = new THREE.Group()
@@ -129,13 +129,21 @@ export class StickmanSwordsman {
   private bones: THREE.Mesh[] = []
   private knobs: THREE.Mesh[] = []
   private head = new THREE.Group()
+  private hatGroup = new THREE.Group()
   private sword = new THREE.Group()
+  private bladeMesh: THREE.Mesh
   private collar: THREE.Mesh
   private ribbons: Ribbon[]
 
   // 斗笠积雪层
   private hatSnow: THREE.Mesh
   private hatSnowMat: THREE.MeshStandardMaterial
+
+  // 雪天红油纸伞：漆竹伞柄 + 竹骨伞架 + 朱红油纸伞面 + 伞顶覆雪层（斜倚肩后约 29° 展开）
+  private umbrella = new THREE.Group()
+  private umbrellaSnow: THREE.Mesh
+  private umbrellaSnowMat: THREE.MeshStandardMaterial
+  private umbrellaBaseAxis = new THREE.Vector3(0.44, 0.86, -0.25).normalize()
 
   // 雨天垂钓道具：弯曲竹钓竿 + 鱼线 + 红白浮漂 + 水面涟漪环
   private fishingRod = new THREE.Group()
@@ -155,6 +163,8 @@ export class StickmanSwordsman {
   private anchor = new THREE.Vector3()
   private tmpTip = new THREE.Vector3()
   private tmpBob = new THREE.Vector3()
+  private tmpAxis = new THREE.Vector3()
+  private tmpOffset = new THREE.Vector3()
   private tween: gsap.core.Tween | null = null
 
   /** 随当前章节与天气微调头部朝向与压檐角度 */
@@ -213,7 +223,7 @@ export class StickmanSwordsman {
         }),
       ),
     )
-    hat.position.y = 0.125
+    hat.position.y = 0
 
     this.hatSnowMat = new THREE.MeshStandardMaterial({
       color: 0xeef4ff,
@@ -226,10 +236,12 @@ export class StickmanSwordsman {
       emissiveIntensity: 0.22,
     })
     this.hatSnow = new THREE.Mesh(new THREE.ConeGeometry(0.355, 0.195, 36, 1, true), this.hatSnowMat)
-    this.hatSnow.position.y = 0.136
+    this.hatSnow.position.y = 0.011
     this.hatSnow.visible = false
 
-    this.head.add(skull, hat, this.hatSnow)
+    this.hatGroup.add(hat, this.hatSnow)
+    this.hatGroup.position.set(0, 0.125, 0)
+    this.head.add(skull, this.hatGroup)
     this.body.add(this.head)
 
     // ---------- 剑（局部 +Y 为剑身方向，原点在护手，-Y 为剑柄与剑首） ----------
@@ -248,6 +260,7 @@ export class StickmanSwordsman {
         }),
       ),
     )
+    this.bladeMesh = blade
     const dark = new THREE.MeshStandardMaterial({
       color: 0x1a1f2e,
       metalness: 0.1,
@@ -319,6 +332,13 @@ export class StickmanSwordsman {
     this.rodTipLocal.copy(rodPts[rodPts.length - 1])
     this.fishingRod.visible = false
     this.body.add(this.fishingRod)
+
+    // ---------- 雪天红油纸伞（局部原点在右手握持处，+Y 为伞柄方向） ----------
+    const { snowMesh, snowMat } = this.buildUmbrella(cast)
+    this.umbrellaSnow = snowMesh
+    this.umbrellaSnowMat = snowMat
+    this.umbrella.visible = false
+    this.body.add(this.umbrella)
 
     // ---------- 鱼线 + 红白浮漂 + 水面波纹圈（挂在 group 下，坐标便于对齐河面 WATER_Y） ----------
     this.linePositions = new Float32Array(12 * 3)
@@ -403,7 +423,7 @@ export class StickmanSwordsman {
       emissive: 0x000000,
       emissiveIntensity: 0,
     })
-    this.collar = cast(new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.024, 8, 18), cloth))
+    this.collar = cast(new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.021, 10, 20), cloth))
     this.collar.rotation.x = Math.PI / 2
     this.body.add(this.collar)
     this.ribbons = [new Ribbon(14, 1.25, 0.1, 0.15, cloth), new Ribbon(11, 0.9, 0.07, -0.12, cloth)]
@@ -415,6 +435,134 @@ export class StickmanSwordsman {
       this.bobberRipple,
       ...this.ribbons.map((r) => r.mesh),
     )
+  }
+
+  /** 构建古典红油纸伞：漆竹柄 + 十二根竹骨伞架 + 朱红油纸伞面 + 伞顶覆雪层 */
+  private buildUmbrella(cast: <T extends THREE.Mesh>(m: T) => T) {
+    const shaftMat = new THREE.MeshStandardMaterial({
+      color: 0x3b241a,
+      roughness: 0.72,
+      emissive: 0x160c08,
+      emissiveIntensity: 0.26,
+    })
+    const ribMat = new THREE.MeshStandardMaterial({
+      color: 0xb68d58,
+      roughness: 0.76,
+      emissive: 0x30200e,
+      emissiveIntensity: 0.28,
+    })
+    const brassMat = new THREE.MeshStandardMaterial({
+      color: 0x8d6e3f,
+      metalness: 0.45,
+      roughness: 0.48,
+    })
+    const canopyMat = new THREE.MeshStandardMaterial({
+      color: 0xc22532,
+      metalness: 0.03,
+      roughness: 0.66,
+      side: THREE.DoubleSide,
+      emissive: 0x5c0e18,
+      emissiveIntensity: 0.44,
+    })
+    const trimMat = new THREE.MeshStandardMaterial({
+      color: 0x3d1917,
+      roughness: 0.75,
+      emissive: 0x1e090a,
+      emissiveIntensity: 0.2,
+    })
+
+    // 漆竹伞柄：握持于柄尾附近（柄端仅留短截与朱红穗坠，避免过长穿入肘部或胸前），向上直抵伞顶
+    const shaft = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.014, 1.05, 10), shaftMat))
+    shaft.position.y = 0.425
+    const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.019, 8, 6), brassMat)
+    pommel.position.y = -0.11
+    const tassel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.005, 0.011, 0.08, 6),
+      new THREE.MeshStandardMaterial({ color: 0xb82530, roughness: 0.85, emissive: 0x420b10, emissiveIntensity: 0.3 }),
+    )
+    tassel.position.y = -0.165
+
+    // 伞托滑环与伞顶木帽
+    const runner = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.028, 0.062, 10), shaftMat)
+    runner.position.y = 0.62
+    const topCap = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.066, 0.034, 14), shaftMat))
+    topCap.position.y = 0.942
+    const finial = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), brassMat)
+    finial.position.y = 0.972
+
+    // 油纸伞面（从外沿到顶部的柔和弧形，保证外法线朝上）
+    const canopyProfile = [
+      new THREE.Vector2(0.78, 0.675),
+      new THREE.Vector2(0.67, 0.728),
+      new THREE.Vector2(0.51, 0.795),
+      new THREE.Vector2(0.32, 0.86),
+      new THREE.Vector2(0.14, 0.912),
+      new THREE.Vector2(0.025, 0.938),
+    ]
+    const canopyGeo = new THREE.LatheGeometry(canopyProfile, 24)
+    const canopy = cast(new THREE.Mesh(canopyGeo, canopyMat))
+
+    // 伞沿收边暗红镶圈，增强近景精致度
+    const rimRing = new THREE.Mesh(new THREE.TorusGeometry(0.778, 0.0065, 6, 24), trimMat)
+    rimRing.rotation.x = Math.PI / 2
+    rimRing.position.y = 0.675
+
+    // 伞顶覆雪层：严格抬高在伞面上方 1.5cm（零穿模），覆于上中段六成伞面，完整留出外圈朱红油纸边
+    const snowProfile = [
+      new THREE.Vector2(0.56, 0.793),
+      new THREE.Vector2(0.42, 0.846),
+      new THREE.Vector2(0.26, 0.896),
+      new THREE.Vector2(0.12, 0.933),
+      new THREE.Vector2(0.04, 0.952),
+    ]
+    const snowGeo = new THREE.LatheGeometry(snowProfile, 24)
+    snowGeo.computeVertexNormals()
+    const snowMat = new THREE.MeshStandardMaterial({
+      color: 0xf0f5ff,
+      metalness: 0,
+      roughness: 0.92,
+      transparent: true,
+      opacity: 0,
+      side: THREE.FrontSide,
+      emissive: 0x2c3954,
+      emissiveIntensity: 0.24,
+    })
+    const snowMesh = new THREE.Mesh(snowGeo, snowMat)
+    snowMesh.visible = false
+
+    this.umbrella.add(shaft, pommel, tassel, runner, topCap, finial, canopy, rimRing, snowMesh)
+
+    // 十二根细竹骨与撑杆，仰视/平视均能看清精致油纸伞结构
+    const ribGeo = new THREE.CylinderGeometry(1, 1, 1, 5)
+    const aPt = new THREE.Vector3()
+    const bPt = new THREE.Vector3()
+    const segDir = new THREE.Vector3()
+    const addBar = (p1: THREE.Vector3, p2: THREE.Vector3, radius: number) => {
+      segDir.subVectors(p2, p1)
+      const len = segDir.length()
+      const m = new THREE.Mesh(ribGeo, ribMat)
+      m.position.copy(p1).addScaledVector(segDir, 0.5)
+      m.quaternion.setFromUnitVectors(UP, segDir.divideScalar(len))
+      m.scale.set(radius, len, radius)
+      this.umbrella.add(m)
+    }
+
+    const RIBS = 12
+    for (let i = 0; i < RIBS; i++) {
+      const a = (i / RIBS) * Math.PI * 2
+      const ca = Math.cos(a)
+      const sa = Math.sin(a)
+      // 主伞骨
+      aPt.set(0.025 * ca, 0.924, 0.025 * sa)
+      bPt.set(0.768 * ca, 0.67, 0.768 * sa)
+      addBar(aPt, bPt, 0.0052)
+      // 撑骨（从伞托斜撑至伞骨中段）
+      aPt.set(0.022 * ca, 0.625, 0.022 * sa)
+      bPt.set(0.36 * ca, 0.822, 0.36 * sa)
+      addBar(aPt, bPt, 0.0044)
+    }
+
+    return { snowMesh, snowMat }
   }
 
   /** 主角姿态接口 */
@@ -434,26 +582,30 @@ export class StickmanSwordsman {
     this.syncHeadTargets()
   }
 
-  /** 随天气切换位置与活动（晴/阴倚石守炉；雨天河畔垂钓；雪天围炉烤火） */
+  /** 随天气切换位置与活动（晴/阴倚石守炉；雨天河畔垂钓；雪天倚石斜伞赏雪） */
   setWeather(kind: WeatherKind, immediate = false) {
     const prevSpot = this.spotFor(this.weather)
     const nextSpot = this.spotFor(kind)
     this.weather = kind
 
-    const moved = prevSpot !== nextSpot || immediate
+    // 晴/阴与雪天同在巨石上，切天气时丝滑补间过渡；仅进出河畔垂钓时瞬移落位并重置飘带
+    const teleported = prevSpot === 'fishing' || nextSpot === 'fishing' || immediate
     if (nextSpot === 'fishing') {
       const y = groundHeight(CAMP.fishing.x, CAMP.fishing.z)
       this.group.position.set(CAMP.fishing.x, y, CAMP.fishing.z)
-      this.setPose(FISHING_POSE, moved)
+      this.setPose(FISHING_POSE, teleported)
     } else if (nextSpot === 'snow') {
       this.group.position.set(CAMP.snowHero.x, 0, CAMP.snowHero.z)
-      this.setPose(SNOW_WARM_POSE, moved)
+      this.setPose(SNOW_UMBRELLA_POSE, teleported)
     } else {
       this.group.position.set(CAMP.hero.x, 0, CAMP.hero.z)
-      this.setPose(HOME_POSE, moved)
+      this.setPose(HOME_POSE, teleported)
     }
 
-    if (moved) {
+    // 保持斗笠常驻头顶，维持剑客经典剪影
+    this.hatGroup.visible = true
+
+    if (teleported) {
       for (const r of this.ribbons) r.reset()
     }
     this.syncHeadTargets()
@@ -465,7 +617,7 @@ export class StickmanSwordsman {
       return out.set(CAMP.fishing.x, groundHeight(CAMP.fishing.x, CAMP.fishing.z) + 0.65, CAMP.fishing.z - 0.1)
     }
     if (this.weather === 'snow') {
-      return out.set(CAMP.snowHero.x, 0.72, CAMP.snowHero.z)
+      return out.set(CAMP.snowHero.x + 0.48, 0.95, CAMP.snowHero.z - 0.16)
     }
     return out.set(CAMP.hero.x + 0.35, 0.85, CAMP.hero.z - 0.1)
   }
@@ -485,9 +637,9 @@ export class StickmanSwordsman {
       return
     }
     if (this.weather === 'snow') {
-      // 烤火时望向火堆，切到「来历」时略微抬头迎客
-      this.headYawTarget = id === 'about' ? -0.45 : 0.02
-      this.headPitchTarget = id === 'about' ? 0.08 : 0.28
+      // 倚石斜伞赏雪：延续经典孤侠侧颜并略微抬首望雪，切到「来历」时回首迎客
+      this.headYawTarget = id === 'about' ? -0.24 : -0.52
+      this.headPitchTarget = id === 'about' ? 0.06 : 0.12
       return
     }
     if (id === 'about') {
@@ -521,14 +673,13 @@ export class StickmanSwordsman {
     J.elbowL.y += b * 0.45
     J.elbowR.y += b * 0.45
 
-    // 雪天烤火：双手在火光前轻轻搓动取暖
-    if (this.weather === 'snow') {
-      const rub = Math.sin(time * 3.8) * 0.018
-      const lift = Math.sin(time * 1.9) * 0.012
-      J.handL.y += lift + rub * 0.45
-      J.handR.y += lift - rub * 0.45
-      J.handL.x += Math.sin(time * 3.8) * 0.012
-      J.handR.x -= Math.sin(time * 3.8) * 0.012
+    // 雪天拄剑撑红伞：持伞手随雪风轻稳微晃，按剑左手稳扶剑首（剑身立定雪中不漂移）
+    const isSnowUmbrella = this.weather === 'snow'
+    if (isSnowUmbrella) {
+      const gust = Math.sin(time * 1.15) * 0.009 + Math.sin(time * 2.1 + 0.7) * 0.003
+      J.handR.y += gust * 0.7
+      J.handR.x += gust * 0.25
+      J.elbowR.y += gust * 0.4
     }
 
     // 雨天垂钓：周期性轻提竿/鱼咬钩颤动
@@ -564,16 +715,38 @@ export class StickmanSwordsman {
     this.head.position.copy(J.head)
     this.head.rotation.set(this.headPitch, this.headYaw, -p.tilt * DEG)
 
-    // 斗笠积雪随降雪逐渐覆白
+    // 斗笠积雪：雪天在红伞庇护下保留一抹轻霜，其余降雪过渡自然渐显
     this.hatSnow.visible = snow > 0.03
-    this.hatSnowMat.opacity = Math.min(0.92, snow * 0.92)
+    this.hatSnowMat.opacity = Math.min(isSnowUmbrella ? 0.52 : 0.92, snow * (isSnowUmbrella ? 0.52 : 0.92))
+
+    // ---------- 雪天红油纸伞：右手握柄、微斜向肩后，随雪风轻摆 ----------
+    this.umbrella.visible = isSnowUmbrella
+    if (isSnowUmbrella) {
+      this.umbrella.position.copy(J.handR)
+      const wf = Math.min(1.6, wind)
+      const swayX = Math.sin(time * 1.05) * 0.028 * wf
+      const swayZ = Math.cos(time * 0.85 + 0.5) * 0.022 * wf
+      this.tmpAxis
+        .copy(this.umbrellaBaseAxis)
+        .add(this.tmpOffset.set(swayX, 0, swayZ))
+        .normalize()
+      this.umbrella.quaternion.setFromUnitVectors(UP, this.tmpAxis)
+      this.umbrellaSnow.visible = snow > 0.04
+      this.umbrellaSnowMat.opacity = Math.min(0.9, snow * 0.9)
+    }
 
     this.dir.subVectors(J.tip, J.hilt).normalize()
     this.sword.position.copy(J.hilt)
     this.sword.quaternion.setFromUnitVectors(UP, this.dir)
+    // 雪天斜拄古剑拉伸至 1.2m 修长剑刃，避免短剑观感
+    this.bladeMesh.scale.y = isSnowUmbrella ? 1.36 : 1.0
 
-    // 红巾围领贴在颈根处
-    this.collar.position.lerpVectors(J.neck, J.chest, 0.16)
+    // 红巾围领紧贴颈根
+    if (isSnowUmbrella) {
+      this.collar.position.lerpVectors(J.neck, J.head, 0.06)
+    } else {
+      this.collar.position.lerpVectors(J.neck, J.chest, 0.16)
+    }
     this.body.rotation.y = p.yaw * DEG + lean
 
     // ---------- 雨天钓竿、鱼线、浮漂与水面咬钩涟漪 ----------
@@ -625,34 +798,36 @@ export class StickmanSwordsman {
       this.bobberRippleMat.opacity = (1 - rip) * (0.28 + Math.abs(nibble) * 0.35)
     }
 
-    // ---------- 雪天寒气哈气 ----------
+    // ---------- 雪天寒气哈气（从斗笠帽檐下沿朝向 -X 轻逸散出） ----------
     const showBreath = snow > 0.45
     for (let i = 0; i < this.breathSprites.length; i++) {
       const sp = this.breathSprites[i]
       sp.visible = showBreath
       if (!showBreath) continue
-      const cycle = (time * 0.32 + i * 0.14) % 1
-      const active = cycle < 0.55
+      const cycle = (time * 0.3 + i * 0.16) % 1
+      const active = cycle < 0.52
       if (!active) {
         sp.material.opacity = 0
         continue
       }
-      const u = cycle / 0.55
+      const u = cycle / 0.52
       sp.position.set(
-        J.head.x + Math.sin(time + i) * 0.03 * u,
-        J.head.y - 0.04 + u * 0.24,
-        J.head.z - 0.14 - u * 0.28,
+        J.head.x - 0.16 - u * 0.26,
+        J.head.y - 0.08 + u * 0.16,
+        J.head.z + Math.sin(time + i) * 0.025 * u,
       )
-      const sc = 0.08 + u * 0.24
+      const sc = 0.065 + u * 0.2
       sp.scale.set(sc, sc, 1)
-      sp.material.opacity = Math.sin(u * Math.PI) * 0.34 * snow
+      sp.material.opacity = Math.sin(u * Math.PI) * 0.24 * snow
     }
 
-    // 红巾飘带
-    const ribbonOffset = this.weather === 'rain' || this.weather === 'snow'
-      ? new THREE.Vector3(0.03, 0, 0.06)
-      : new THREE.Vector3(0.05, 0, -0.04)
-    this.anchor.copy(this.collar.position).add(ribbonOffset).applyAxisAngle(UP, this.body.rotation.y)
+    // 红巾飘带：沿颈后顺风向右后方展开
+    if (this.weather === 'rain') {
+      this.tmpOffset.set(0.03, 0, 0.06)
+    } else {
+      this.tmpOffset.set(0.05, 0, -0.04)
+    }
+    this.anchor.copy(this.collar.position).add(this.tmpOffset).applyAxisAngle(UP, this.body.rotation.y)
     this.ribbons[0].update(this.anchor, time, dt, wind)
     this.anchor.y -= 0.02
     this.anchor.z -= 0.03

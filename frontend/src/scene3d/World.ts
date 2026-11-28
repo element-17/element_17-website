@@ -145,7 +145,7 @@ export class World {
     this.fire = new Campfire()
     this.fire.group.position.set(CAMP.fire.x, 0, CAMP.fire.z)
 
-    // 主角：按初始天气自动落位（晴/阴倚石、雨天河畔垂钓、雪天围炉烤火）
+    // 主角：按初始天气自动落位（晴/阴倚石、雨天河畔垂钓、雪天撑红伞立雪）
     this.hero = new StickmanSwordsman()
     this.hero.setModule(initialModule)
     this.hero.setWeather(initialWeather, true)

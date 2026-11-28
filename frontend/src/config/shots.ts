@@ -3,7 +3,7 @@ import type { WeatherKind } from './weather'
 
 /**
  * 机位：相机位置 (px, py, pz) + 注视点 (tx, ty, tz)。
- * 五个模块都围着首页营地与河畔取景；不同天气下，归处与来历会平滑跟随主角（河畔垂钓 / 围炉烤火）。
+ * 五个模块都围着首页营地与河畔取景；不同天气下，归处与来历会平滑跟随主角（河畔垂钓 / 执伞立雪）。
  * shift  : 画面水平偏移（视口宽度比例，负值 = 主体偏右，给左侧面板让位）
  * shiftY : 画面垂直偏移（视口高度比例，负值 = 主体偏下）
  * par    : 鼠标视差强度（近景要小，否则卷上的文字跟着晃）
@@ -27,8 +27,8 @@ export interface Shot {
 /** 营地与河畔各件陈设/活动点的地面坐标 */
 export const CAMP = {
   hero: { x: 0, z: 0 },
-  /** 下雪时主角靠近篝火蹲坐烤火的位置（与倚石留出余量，红巾飘带不穿石） */
-  snowHero: { x: -0.92, z: 0.32 },
+  /** 下雪时主角与晴天同倚覆雪巨石，肩后斜倚红油纸伞、扶长剑赏雪 */
+  snowHero: { x: 0, z: 0 },
   /** 下雨时主角移步到近岸水边扁石上垂钓的位置 */
   fishing: { x: -1.15, z: -7.45 },
   fire: { x: -1.75, z: 0.75 },
@@ -123,7 +123,7 @@ export const SHOTS: Record<ModuleId, Shot> = {
   },
 }
 
-/** 不同天气下的机位微调：雨天切到河畔垂钓、篝火熄灭；雪天微移聚焦围炉烤火 */
+/** 不同天气下的机位微调：雨天切到河畔垂钓、篝火熄灭；雪天聚焦执红油纸伞立雪的剑客 */
 const WEATHER_OVERRIDES: Partial<Record<WeatherKind, Partial<Record<ModuleId, Partial<Shot>>>>> = {
   cloudy: {
     home: { fire: 0.92, vig: 0.4 },
@@ -177,34 +177,36 @@ const WEATHER_OVERRIDES: Partial<Record<WeatherKind, Partial<Record<ModuleId, Pa
     },
   },
   snow: {
-    // 寒江飞雪：同框呈现围炉烤火的剑客、旺燃融雪的篝火与覆雪倚石
+    // 寒江飞雪：延续经典首页构图并略微拉阔，完整呈现倚雪石斜倚红伞的剑客、修长古剑、左下融雪篝火与明月远村
     home: {
-      px: -0.18,
-      py: 1.16,
-      pz: 4.55,
-      tx: -0.68,
-      ty: 0.86,
-      tz: 0.18,
-      fov: 36,
+      px: -0.06,
+      py: 1.24,
+      pz: 5.05,
+      tx: 0.14,
+      ty: 1.18,
+      tz: -0.15,
+      fov: 37,
       shift: -0.18,
-      exposure: 1.02,
-      fire: 1.18,
+      exposure: 1.03,
+      fire: 1.15,
       vig: 0.36,
     },
     blog: { fire: 1.15 },
     projects: { fire: 1.15 },
+    // 来历：侧前方半身近景，展现覆雪斗笠、颈间红巾、修长剑柄与肩后斜展的红油纸伞
     about: {
-      px: -1.85,
-      py: 1.02,
-      pz: 2.38,
-      tx: -0.82,
-      ty: 0.72,
-      tz: 0.28,
-      fov: 36,
+      px: -1.12,
+      py: 1.28,
+      pz: 2.65,
+      tx: 0.46,
+      ty: 1.18,
+      tz: -0.22,
+      fov: 38,
       shift: 0.16,
-      fire: 1.18,
+      exposure: 1.04,
+      fire: 1.15,
       vig: 0.44,
-      par: 0.6,
+      par: 0.56,
     },
     contact: { fire: 1.15 },
   },
@@ -229,5 +231,9 @@ const MOBILE: Partial<Record<ModuleId, Partial<Shot>>> = {
 export const shotFor = (id: ModuleId, narrow: boolean, weather: WeatherKind = 'clear'): Shot => {
   const s = { ...SHOTS[id], ...WEATHER_OVERRIDES[weather]?.[id] }
   if (!narrow) return s
+  // 竖屏雪景首页：居中囊括倚石剑客、肩后斜展红油纸伞与身前长剑，并留出左右与底部余量
+  if (weather === 'snow' && id === 'home') {
+    return { ...s, tx: 0.38, ty: 1.08, pz: 5.9, shift: 0, shiftY: -0.15, fov: s.fov + 5 }
+  }
   return { ...s, shift: 0, shiftY: -0.24, fov: s.fov + 4, ...MOBILE[id] }
 }

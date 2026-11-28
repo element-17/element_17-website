@@ -79,7 +79,7 @@ export const WEATHER_META: Record<WeatherKind, WeatherMeta> = {
     id: 'snow',
     label: '下雪',
     shortLabel: '雪',
-    sceneSummary: '寒江飞雪 · 积雪覆岸，剑客围炉烤火',
+    sceneSummary: '寒江飞雪 · 积雪覆岸，剑客撑红伞立雪',
   },
 }
 
